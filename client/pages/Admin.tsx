@@ -163,7 +163,7 @@ export default function Admin() {
           direct_link_hint:
             strings.direct_link_hint ??
             data.direct_link_hint ??
-            "Almost there — complete your free sign-up to watch",
+            "Almost there - finish signup to watch.",
           affiliate_link: data.affiliate_link,
           affiliate_link_a: (data.affiliate_link_a ?? "").toString(),
           affiliate_link_b: (data.affiliate_link_b ?? "").toString(),
@@ -478,7 +478,7 @@ export default function Admin() {
       direct_link_hint:
         strings.direct_link_hint ??
         popupSettings.direct_link_hint ??
-        "Almost there — complete your free sign-up to watch",
+        "Almost there - finish signup to watch.",
       affiliate_link: popupSettings.affiliate_link,
       affiliate_link_a: (popupSettings.affiliate_link_a ?? "").toString(),
       affiliate_link_b: (popupSettings.affiliate_link_b ?? "").toString(),
@@ -1660,7 +1660,7 @@ export default function Admin() {
                         name="direct_link_hint"
                         value={popupForm.direct_link_hint}
                         onChange={handlePopupFormChange}
-                        placeholder="Almost there — complete your free sign-up to watch"
+                        placeholder="Almost there - finish signup to watch."
                         className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                       <p className="text-[11px] text-muted-foreground mt-1.5">

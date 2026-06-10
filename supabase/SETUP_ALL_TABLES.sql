@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS popup_settings (
   affiliate_link_b TEXT NOT NULL DEFAULT '',
   affiliate_split_a INTEGER NOT NULL DEFAULT 50,
   hide_popup BOOLEAN NOT NULL DEFAULT false,
-  direct_link_hint TEXT NOT NULL DEFAULT 'Almost there — complete your free sign-up to watch',
+  direct_link_hint TEXT NOT NULL DEFAULT 'Almost there - finish signup to watch.',
   popup_translations JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -63,7 +63,7 @@ SELECT
   '',
   50,
   false,
-  'Almost there — complete your free sign-up to watch',
+  'Almost there - finish signup to watch.',
   jsonb_build_object(
     'en',
     jsonb_build_object(
@@ -73,7 +73,7 @@ SELECT
       'waiting_title', 'Waiting for Registration',
       'waiting_description', 'Please complete your free registration in the new window. Once you finish, you''ll have full access to all premium videos.',
       'waiting_button_text', 'Open Link Again',
-      'direct_link_hint', 'Almost there — complete your free sign-up to watch'
+      'direct_link_hint', 'Almost there - finish signup to watch.'
     )
   )
 WHERE NOT EXISTS (SELECT 1 FROM popup_settings LIMIT 1);

@@ -577,7 +577,7 @@ export default function Index() {
   const popupStrings = getPopupStringsForLocale(popupSettings, locale);
   const directLinkHint =
     popupStrings.direct_link_hint?.trim() ||
-    "Almost there — complete your free sign-up to watch";
+    "Almost there - finish signup to watch.";
 
   return (
     <>
