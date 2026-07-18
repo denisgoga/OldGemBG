@@ -88,6 +88,8 @@ CREATE TABLE IF NOT EXISTS site_settings (
   landing_subhead TEXT,
   seo_intro TEXT,
   footer_text TEXT,
+  head_scripts TEXT NOT NULL DEFAULT '',
+  body_scripts TEXT NOT NULL DEFAULT '',
   site_translations JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()

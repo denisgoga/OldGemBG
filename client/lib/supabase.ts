@@ -63,6 +63,10 @@ export type SiteSettings = {
   landing_subhead: string | null;
   seo_intro: string | null;
   footer_text: string | null;
+  /** Raw HTML injected into document head on public pages (admin-managed). */
+  head_scripts: string | null;
+  /** Raw HTML injected before closing body on public pages (admin-managed). */
+  body_scripts: string | null;
   // i18n JSONB map: { "en": { meta_title, ... }, "de": { ... }, ... }
   site_translations: Record<string, SiteTranslations> | null;
   created_at: string;

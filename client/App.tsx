@@ -15,6 +15,7 @@ import { AgeGate } from "./components/AgeGate";
 import NotFound from "./pages/NotFound";
 import { LocaleProvider } from "@/i18n/LocaleContext";
 import { SUPPORTED_LOCALES, type Locale } from "@/i18n/locales";
+import { SiteManagedScripts } from "@/components/SiteManagedScripts";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ const App = () => {
           <AgeGate onVerified={setAgeVerified} />
           {ageVerified && (
             <BrowserRouter>
+              <SiteManagedScripts />
               <Routes>
                 <Route path="/:locale" element={<Index />} />
                 <Route path="/:locale/" element={<Index />} />

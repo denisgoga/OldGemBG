@@ -78,6 +78,8 @@ export default function Admin() {
     landing_subhead: "",
     seo_intro: "",
     footer_text: "",
+    head_scripts: "",
+    body_scripts: "",
     hide_landing_headline: false,
     hide_landing_subhead: false,
     hide_seo_intro: false,
@@ -453,6 +455,8 @@ export default function Admin() {
           landing_subhead: strings.landing_subhead ?? "",
           seo_intro: strings.seo_intro ?? "",
           footer_text: strings.footer_text ?? "",
+          head_scripts: data.head_scripts ?? "",
+          body_scripts: data.body_scripts ?? "",
           hide_landing_headline: strings.hide_landing_headline,
           hide_landing_subhead: strings.hide_landing_subhead,
           hide_seo_intro: strings.hide_seo_intro,
@@ -500,6 +504,8 @@ export default function Admin() {
       landing_subhead: strings.landing_subhead ?? "",
       seo_intro: strings.seo_intro ?? "",
       footer_text: strings.footer_text ?? "",
+      head_scripts: siteSettings.head_scripts ?? "",
+      body_scripts: siteSettings.body_scripts ?? "",
       hide_landing_headline: strings.hide_landing_headline,
       hide_landing_subhead: strings.hide_landing_subhead,
       hide_seo_intro: strings.hide_seo_intro,
@@ -894,6 +900,8 @@ export default function Admin() {
       } = {
         site_translations: nextSiteTranslations,
         og_image: siteForm.og_image,
+        head_scripts: siteForm.head_scripts,
+        body_scripts: siteForm.body_scripts,
         updated_at: new Date().toISOString(),
       };
 
@@ -1460,6 +1468,14 @@ export default function Admin() {
                   <div className="text-sm space-y-2 mb-4">
                     <p><span className="text-muted-foreground">Meta title:</span> {siteForm.meta_title || "—"}</p>
                     <p><span className="text-muted-foreground">Landing headline:</span> {siteForm.landing_headline || "—"}</p>
+                    <p>
+                      <span className="text-muted-foreground">Head scripts:</span>{" "}
+                      {siteForm.head_scripts.trim() ? "Configured" : "—"}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Body scripts:</span>{" "}
+                      {siteForm.body_scripts.trim() ? "Configured" : "—"}
+                    </p>
                   </div>
                   <button
                     onClick={() => setEditingSite(true)}
@@ -1525,6 +1541,46 @@ export default function Admin() {
                     <label className="block text-xs font-medium mb-1">Footer text</label>
                     <input type="text" name="footer_text" value={siteForm.footer_text} onChange={handleSiteFormChange} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Adults only. 18+." />
                   </div>
+
+                  <div className="border-t border-border pt-4 space-y-4">
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">
+                        Custom scripts (Head)
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mb-2">
+                        Paste HTML for the document head (e.g. analytics, meta tags).
+                        Injected on public pages only — not admin.
+                      </p>
+                      <textarea
+                        name="head_scripts"
+                        value={siteForm.head_scripts}
+                        onChange={handleSiteFormChange}
+                        rows={6}
+                        spellCheck={false}
+                        className="w-full px-3 py-2 bg-input border border-border rounded text-xs font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y min-h-[8rem]"
+                        placeholder={'<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXX"></script>'}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">
+                        Custom scripts (Body)
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mb-2">
+                        Paste HTML before the closing body tag (e.g. chat widgets,
+                        noscript fallbacks).
+                      </p>
+                      <textarea
+                        name="body_scripts"
+                        value={siteForm.body_scripts}
+                        onChange={handleSiteFormChange}
+                        rows={6}
+                        spellCheck={false}
+                        className="w-full px-3 py-2 bg-input border border-border rounded text-xs font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y min-h-[8rem]"
+                        placeholder={'<noscript>...</noscript>'}
+                      />
+                    </div>
+                  </div>
+
                   <div className="flex gap-2">
                     <button type="submit" className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2 rounded text-xs">Save</button>
                     <button type="button" onClick={() => setEditingSite(false)} className="flex-1 bg-secondary hover:bg-secondary/80 text-foreground font-semibold py-2 rounded text-xs">Cancel</button>
