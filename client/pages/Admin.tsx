@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Trash2, Plus, Settings, LogOut, ArrowUp, ArrowDown, Pencil } from "lucide-react";
+import { Trash2, Plus, Settings, LogOut, ArrowUp, ArrowDown, Pencil, Code2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -18,6 +18,7 @@ import {
   uploadHomepageBannerFile,
 } from "@/lib/videoThumbnailStorage";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SUPPORTED_LOCALES, type Locale } from "@/i18n/locales";
 import { getPopupStringsForLocale, getSiteStringsForLocale } from "@/i18n/dbTranslation";
 
@@ -70,6 +71,7 @@ export default function Admin() {
   );
   const [bannerSaving, setBannerSaving] = useState(false);
   const [editingSite, setEditingSite] = useState(false);
+  const [editingScripts, setEditingScripts] = useState(false);
   const [siteForm, setSiteForm] = useState({
     meta_title: "",
     meta_description: "",
@@ -876,6 +878,14 @@ export default function Admin() {
     setSiteForm((prev) => ({ ...prev, [name]: checked }));
   };
 
+  const closeAllSettingsEditing = () => {
+    setEditingSite(false);
+    setEditingScripts(false);
+    setEditingPopup(false);
+  };
+
+  const isSettingsEditing = editingSite || editingScripts || editingPopup;
+
   const handleUpdateSiteSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -938,9 +948,10 @@ export default function Admin() {
         await fetchSiteSettings();
       }
       setEditingSite(false);
+      setEditingScripts(false);
       toast({
         title: "Success",
-        description: "Site & SEO settings saved.",
+        description: "Site settings saved.",
       });
     } catch (error) {
       console.error("Error saving site settings:", error);
@@ -1422,21 +1433,21 @@ export default function Admin() {
             </div>
           </div>
 
-          {/* Right Column: Site & SEO + Popup Settings */}
-          <div className="space-y-6">
-            <div className="border border-border rounded-lg p-6 bg-card">
-              <div className="flex items-center justify-between gap-4">
+          {/* Right Column: settings sidebar (scrollable) */}
+          <div className="space-y-4 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
+            <div className="border border-border rounded-lg p-4 bg-card">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-semibold">Edit language</h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Saves fields into JSONB translations for the selected language.
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Translations for Site & SEO and Popup tabs.
                   </p>
                 </div>
                 <select
                   value={selectedLocale}
                   onChange={(e) => setSelectedLocale(e.target.value as Locale)}
-                  className="px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  disabled={editingPopup || editingSite}
+                  className="w-full sm:w-auto px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  disabled={isSettingsEditing}
                 >
                   {SUPPORTED_LOCALES.map((l) => (
                     <option key={l} value={l}>
@@ -1455,145 +1466,208 @@ export default function Admin() {
               </div>
             </div>
 
-            {/* Site & SEO */}
-            <div className="border border-border rounded-lg p-6 bg-card sticky top-24">
-              <h2 className="text-xl font-bold mb-4">Site & SEO</h2>
-              {!siteSettings && !editingSite ? (
-                <p className="text-sm text-muted-foreground mb-4">
-                  Create the <code className="text-xs bg-secondary px-1 rounded">site_settings</code> table in Supabase (see <code className="text-xs bg-secondary px-1 rounded">supabase/migrations/</code>) to edit meta title, description, and landing copy here.
-                </p>
-              ) : null}
-              {!editingSite ? (
-                <>
-                  <div className="text-sm space-y-2 mb-4">
-                    <p><span className="text-muted-foreground">Meta title:</span> {siteForm.meta_title || "—"}</p>
-                    <p><span className="text-muted-foreground">Landing headline:</span> {siteForm.landing_headline || "—"}</p>
-                    <p>
-                      <span className="text-muted-foreground">Head scripts:</span>{" "}
-                      {siteForm.head_scripts.trim() ? "Configured" : "—"}
+            <Tabs defaultValue="site" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 h-auto gap-1 p-1">
+                <TabsTrigger value="site" className="text-xs py-2.5">
+                  Site & SEO
+                </TabsTrigger>
+                <TabsTrigger value="scripts" className="text-xs py-2.5">
+                  Scripts
+                </TabsTrigger>
+                <TabsTrigger value="popup" className="text-xs py-2.5">
+                  Popup
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="site" className="mt-4 focus-visible:outline-none">
+                <div className="border border-border rounded-lg p-6 bg-card">
+                  <h2 className="text-xl font-bold mb-1">Site & SEO</h2>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Meta tags, landing copy, and footer text.
+                  </p>
+                  {!siteSettings && !editingSite ? (
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Create the{" "}
+                      <code className="text-xs bg-secondary px-1 rounded">site_settings</code>{" "}
+                      table in Supabase to edit content here.
                     </p>
-                    <p>
-                      <span className="text-muted-foreground">Body scripts:</span>{" "}
-                      {siteForm.body_scripts.trim() ? "Configured" : "—"}
+                  ) : null}
+                  {!editingSite ? (
+                    <>
+                      <div className="text-sm space-y-2 mb-4 rounded-lg bg-secondary/60 border border-border p-3">
+                        <p>
+                          <span className="text-muted-foreground">Meta title:</span>{" "}
+                          {siteForm.meta_title || "—"}
+                        </p>
+                        <p>
+                          <span className="text-muted-foreground">Landing headline:</span>{" "}
+                          {siteForm.landing_headline || "—"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          closeAllSettingsEditing();
+                          setEditingSite(true);
+                        }}
+                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 rounded-lg transition-colors"
+                      >
+                        {siteSettings ? "Edit Site & SEO" : "Add Site Settings"}
+                      </button>
+                    </>
+                  ) : (
+                    <form onSubmit={handleUpdateSiteSettings} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Meta title (SEO)</label>
+                        <input type="text" name="meta_title" value={siteForm.meta_title} onChange={handleSiteFormChange} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary" placeholder="OldGem.Net - Free Premium..." />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Meta description (SEO)</label>
+                        <textarea name="meta_description" value={siteForm.meta_description} onChange={handleSiteFormChange} rows={2} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">OG / Share image URL</label>
+                        <input type="url" name="og_image" value={siteForm.og_image} onChange={handleSiteFormChange} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary" placeholder="https://oldgem.net/android-chrome-512x512.png" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Landing headline</label>
+                        <input type="text" name="landing_headline" value={siteForm.landing_headline} onChange={handleSiteFormChange} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Featured Content" />
+                        <label className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                          <input type="checkbox" name="hide_landing_headline" checked={siteForm.hide_landing_headline} onChange={handleSiteCheckboxChange} />
+                          Hide this section
+                        </label>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Landing subhead</label>
+                        <input type="text" name="landing_subhead" value={siteForm.landing_subhead} onChange={handleSiteFormChange} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Browse our premium collection..." />
+                        <label className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                          <input type="checkbox" name="hide_landing_subhead" checked={siteForm.hide_landing_subhead} onChange={handleSiteCheckboxChange} />
+                          Hide this section
+                        </label>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">SEO intro</label>
+                        <textarea name="seo_intro" value={siteForm.seo_intro} onChange={handleSiteFormChange} rows={3} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none" placeholder="Optional. Shown on homepage for SEO." />
+                        <label className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                          <input type="checkbox" name="hide_seo_intro" checked={siteForm.hide_seo_intro} onChange={handleSiteCheckboxChange} />
+                          Hide this section
+                        </label>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Footer text</label>
+                        <input type="text" name="footer_text" value={siteForm.footer_text} onChange={handleSiteFormChange} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Adults only. 18+." />
+                      </div>
+                      <div className="flex gap-2 pt-2 border-t border-border">
+                        <button type="submit" className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2 rounded text-xs">Save</button>
+                        <button type="button" onClick={() => setEditingSite(false)} className="flex-1 bg-secondary hover:bg-secondary/80 text-foreground font-semibold py-2 rounded text-xs">Cancel</button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="scripts" className="mt-4 focus-visible:outline-none">
+                <div className="border border-border rounded-lg p-6 bg-card">
+                  <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
+                    <Code2 size={20} className="text-primary shrink-0" />
+                    Custom Scripts
+                  </h2>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Analytics, tracking, and widgets. Injected on public pages only — not admin.
+                  </p>
+                  {!siteSettings && !editingScripts ? (
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Add site settings in Supabase first, then edit scripts here.
+                    </p>
+                  ) : null}
+                  {!editingScripts ? (
+                    <>
+                      <div className="space-y-3 mb-4">
+                        <div className="rounded-lg bg-secondary/60 border border-border p-3">
+                          <p className="text-xs font-medium mb-1">Head scripts</p>
+                          <p className="text-xs text-muted-foreground">
+                            {siteForm.head_scripts.trim()
+                              ? `${siteForm.head_scripts.trim().split("\n").length} line(s) configured`
+                              : "Not set"}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-secondary/60 border border-border p-3">
+                          <p className="text-xs font-medium mb-1">Body scripts</p>
+                          <p className="text-xs text-muted-foreground">
+                            {siteForm.body_scripts.trim()
+                              ? `${siteForm.body_scripts.trim().split("\n").length} line(s) configured`
+                              : "Not set"}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          closeAllSettingsEditing();
+                          setEditingScripts(true);
+                        }}
+                        disabled={!siteSettings}
+                        className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground font-semibold py-2.5 rounded-lg transition-colors"
+                      >
+                        Edit Scripts
+                      </button>
+                    </>
+                  ) : (
+                    <form onSubmit={handleUpdateSiteSettings} className="space-y-5">
+                      <div>
+                        <label className="block text-sm font-medium mb-1.5">
+                          Head scripts
+                        </label>
+                        <p className="text-[11px] text-muted-foreground mb-2">
+                          Paste HTML for <code className="bg-secondary px-1 rounded">&lt;head&gt;</code> — e.g. Google Analytics, meta pixels.
+                        </p>
+                        <textarea
+                          name="head_scripts"
+                          value={siteForm.head_scripts}
+                          onChange={handleSiteFormChange}
+                          rows={10}
+                          spellCheck={false}
+                          className="w-full px-3 py-2 bg-input border border-border rounded-md text-xs font-mono leading-relaxed text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y min-h-[12rem]"
+                          placeholder={'<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXX"></script>\n<script>...</script>'}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1.5">
+                          Body scripts
+                        </label>
+                        <p className="text-[11px] text-muted-foreground mb-2">
+                          Paste HTML before closing <code className="bg-secondary px-1 rounded">&lt;/body&gt;</code> — e.g. chat widgets, noscript.
+                        </p>
+                        <textarea
+                          name="body_scripts"
+                          value={siteForm.body_scripts}
+                          onChange={handleSiteFormChange}
+                          rows={10}
+                          spellCheck={false}
+                          className="w-full px-3 py-2 bg-input border border-border rounded-md text-xs font-mono leading-relaxed text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y min-h-[12rem]"
+                          placeholder={'<noscript>...</noscript>'}
+                        />
+                      </div>
+                      <div className="flex gap-2 pt-2 border-t border-border sticky bottom-0 bg-card pb-1">
+                        <button type="submit" className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 rounded text-xs">Save scripts</button>
+                        <button type="button" onClick={() => setEditingScripts(false)} className="flex-1 bg-secondary hover:bg-secondary/80 text-foreground font-semibold py-2.5 rounded text-xs">Cancel</button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="popup" className="mt-4 focus-visible:outline-none">
+                <div className="border border-border rounded-lg p-6 bg-card space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                      <Settings size={20} className="text-primary" />
+                      Popup Settings
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Registration modal, affiliate links, and direct-link mode.
                     </p>
                   </div>
-                  <button
-                    onClick={() => setEditingSite(true)}
-                    className="w-full bg-secondary hover:bg-secondary/80 text-foreground font-semibold py-2 rounded-lg transition-colors"
-                  >
-                    {siteSettings ? "Edit Site & SEO" : "Add Site Settings"}
-                  </button>
-                </>
-              ) : (
-                <form onSubmit={handleUpdateSiteSettings} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-medium mb-1">Meta title (SEO)</label>
-                    <input type="text" name="meta_title" value={siteForm.meta_title} onChange={handleSiteFormChange} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary" placeholder="OldGem.Net - Free Premium..." />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium mb-1">Meta description (SEO)</label>
-                    <textarea name="meta_description" value={siteForm.meta_description} onChange={handleSiteFormChange} rows={2} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium mb-1">OG / Share image URL</label>
-                    <input type="url" name="og_image" value={siteForm.og_image} onChange={handleSiteFormChange} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary" placeholder="https://oldgem.net/android-chrome-512x512.png" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium mb-1">Landing headline</label>
-                    <input type="text" name="landing_headline" value={siteForm.landing_headline} onChange={handleSiteFormChange} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Featured Content" />
-                    <label className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        name="hide_landing_headline"
-                        checked={siteForm.hide_landing_headline}
-                        onChange={handleSiteCheckboxChange}
-                      />
-                      Hide this section
-                    </label>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium mb-1">Landing subhead</label>
-                    <input type="text" name="landing_subhead" value={siteForm.landing_subhead} onChange={handleSiteFormChange} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Browse our premium collection..." />
-                    <label className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        name="hide_landing_subhead"
-                        checked={siteForm.hide_landing_subhead}
-                        onChange={handleSiteCheckboxChange}
-                      />
-                      Hide this section
-                    </label>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium mb-1">SEO intro (short paragraph under headline)</label>
-                    <textarea name="seo_intro" value={siteForm.seo_intro} onChange={handleSiteFormChange} rows={3} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none" placeholder="Optional. Shown on homepage for SEO." />
-                    <label className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        name="hide_seo_intro"
-                        checked={siteForm.hide_seo_intro}
-                        onChange={handleSiteCheckboxChange}
-                      />
-                      Hide this section
-                    </label>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium mb-1">Footer text</label>
-                    <input type="text" name="footer_text" value={siteForm.footer_text} onChange={handleSiteFormChange} className="w-full px-3 py-2 bg-input border border-border rounded text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Adults only. 18+." />
-                  </div>
-
-                  <div className="border-t border-border pt-4 space-y-4">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground mb-1">
-                        Custom scripts (Head)
-                      </p>
-                      <p className="text-[11px] text-muted-foreground mb-2">
-                        Paste HTML for the document head (e.g. analytics, meta tags).
-                        Injected on public pages only — not admin.
-                      </p>
-                      <textarea
-                        name="head_scripts"
-                        value={siteForm.head_scripts}
-                        onChange={handleSiteFormChange}
-                        rows={6}
-                        spellCheck={false}
-                        className="w-full px-3 py-2 bg-input border border-border rounded text-xs font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y min-h-[8rem]"
-                        placeholder={'<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXX"></script>'}
-                      />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground mb-1">
-                        Custom scripts (Body)
-                      </p>
-                      <p className="text-[11px] text-muted-foreground mb-2">
-                        Paste HTML before the closing body tag (e.g. chat widgets,
-                        noscript fallbacks).
-                      </p>
-                      <textarea
-                        name="body_scripts"
-                        value={siteForm.body_scripts}
-                        onChange={handleSiteFormChange}
-                        rows={6}
-                        spellCheck={false}
-                        className="w-full px-3 py-2 bg-input border border-border rounded text-xs font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y min-h-[8rem]"
-                        placeholder={'<noscript>...</noscript>'}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button type="submit" className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2 rounded text-xs">Save</button>
-                    <button type="button" onClick={() => setEditingSite(false)} className="flex-1 bg-secondary hover:bg-secondary/80 text-foreground font-semibold py-2 rounded text-xs">Cancel</button>
-                  </div>
-                </form>
-              )}
-            </div>
-
-            <div className="border border-border rounded-lg p-6 bg-card sticky top-24 space-y-6">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <Settings size={20} className="text-primary" />
-                Popup Settings
-              </h2>
 
               {!editingPopup ? (
                 <>
@@ -1656,7 +1730,11 @@ export default function Admin() {
                   </div>
 
                   <button
-                    onClick={() => setEditingPopup(true)}
+                    type="button"
+                    onClick={() => {
+                      closeAllSettingsEditing();
+                      setEditingPopup(true);
+                    }}
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2 rounded-lg transition-colors"
                   >
                     Edit Settings
@@ -1880,7 +1958,9 @@ export default function Admin() {
                   </div>
                 </form>
               )}
-            </div>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </div>
