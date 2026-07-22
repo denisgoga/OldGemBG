@@ -658,12 +658,27 @@ export default function Admin() {
         setEditingVideoId(null);
         toast({ title: "Success", description: "Video updated!" });
       } else {
+        const updatedAt = new Date().toISOString();
+
+        if (videos.length > 0) {
+          const shiftResults = await Promise.all(
+            videos.map((video, index) =>
+              supabase
+                .from("videos")
+                .update({ sort_order: index + 1, updated_at: updatedAt })
+                .eq("id", video.id),
+            ),
+          );
+          const shiftErr = shiftResults.find((r) => r.error)?.error;
+          if (shiftErr) throw shiftErr;
+        }
+
         const { error } = await supabase.from("videos").insert([
           {
             title: formData.title,
             duration: formData.duration,
             thumbnail: thumbUrl,
-            sort_order: videos.length,
+            sort_order: 0,
           },
         ]);
         if (error) throw error;
