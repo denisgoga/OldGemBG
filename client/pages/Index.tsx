@@ -287,13 +287,21 @@ export default function Index() {
         withTimeout(
           supabase
             .from("videos")
-            .select("*", { count: "exact" })
+            .select("id, title, duration, thumbnail, sort_order, created_at", {
+              count: "exact",
+            })
             .order("sort_order", { ascending: true, nullsFirst: false })
             .order("created_at", { ascending: false })
             .range(from, to),
           VIDEO_QUERY_TIMEOUT_MS,
         ),
-        supabase.from("site_settings").select("*").limit(1).maybeSingle(),
+        supabase
+          .from("site_settings")
+          .select(
+            "id, meta_title, meta_description, og_image, landing_headline, landing_subhead, seo_intro, footer_text, site_translations, created_at, updated_at",
+          )
+          .limit(1)
+          .maybeSingle(),
         supabase
           .from("homepage_banners")
           .select("id, image_url, link_url, size, alt_text")
@@ -328,9 +336,7 @@ export default function Index() {
       realtimeCatalogRefreshTimerRef.current = null;
       void (async () => {
         try {
-          await loadCatalogPageRef.current(pageRef.current, {
-            bypassCache: true,
-          });
+          await loadCatalogPageRef.current(pageRef.current);
         } catch {
           /* ignore realtime refresh errors */
         }
@@ -372,7 +378,7 @@ export default function Index() {
   }, [totalCount, page]);
 
   useEffect(() => {
-    if (import.meta.env.VITE_DISABLE_VIDEO_REALTIME === "true") return;
+    if (import.meta.env.VITE_ENABLE_VIDEO_REALTIME !== "true") return;
 
     const topic =
       typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -643,15 +649,9 @@ export default function Index() {
                       onClick={() => handleThumbnailClick(slot.video)}
                     />
                   ) : (
-                    <div
-                      key={slot.key}
-                      role="presentation"
-                      className="col-span-full flex justify-center py-2"
-                    >
-                      <aside aria-label="Advertisement">
-                        <HomepageBannerAd banner={slot.banner} />
-                      </aside>
-                    </div>
+                    <aside key={slot.key} aria-label="Advertisement">
+                      <HomepageBannerAd banner={slot.banner} />
+                    </aside>
                   ),
                 )}
               </div>

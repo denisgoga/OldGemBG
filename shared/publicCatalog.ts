@@ -2,7 +2,14 @@ import type { PublicCatalogResponse } from "./api";
 import { getSupabaseServerClient } from "./supabaseServer.js";
 
 export const DEFAULT_CATALOG_PAGE_LIMIT = 6;
-const DEFAULT_CACHE_TTL_MS = 60_000;
+const DEFAULT_CACHE_TTL_MS = 300_000;
+
+/** Public site_settings columns only (excludes head_scripts/body_scripts). */
+const PUBLIC_SITE_SETTINGS_SELECT =
+  "id, meta_title, meta_description, og_image, landing_headline, landing_subhead, seo_intro, footer_text, site_translations, created_at, updated_at";
+
+const PUBLIC_VIDEOS_SELECT =
+  "id, title, duration, thumbnail, sort_order, created_at";
 
 type CacheEntry = { body: string; expiresAt: number };
 const cache = new Map<string, CacheEntry>();
@@ -56,11 +63,15 @@ export async function fetchPublicCatalogPayload(
   const [videosRes, settingsRes, bannersRes] = await Promise.all([
     supabase
       .from("videos")
-      .select("*", { count: "exact" })
+      .select(PUBLIC_VIDEOS_SELECT, { count: "exact" })
       .order("sort_order", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false })
       .range(from, to),
-    supabase.from("site_settings").select("*").limit(1).maybeSingle(),
+    supabase
+      .from("site_settings")
+      .select(PUBLIC_SITE_SETTINGS_SELECT)
+      .limit(1)
+      .maybeSingle(),
     supabase
       .from("homepage_banners")
       .select("id, image_url, link_url, size, alt_text")
@@ -120,9 +131,9 @@ export async function getOrBuildCatalogJsonBody(
 }
 
 export function setCatalogCacheControlHeader(setHeader: (n: string, v: string) => void) {
-  const maxAge = process.env.PUBLIC_CATALOG_HTTP_MAX_AGE ?? "15";
-  const sMaxAge = process.env.PUBLIC_CATALOG_HTTP_S_MAXAGE ?? "120";
-  const swr = process.env.PUBLIC_CATALOG_HTTP_STALE_WHILE_REVALIDATE ?? "600";
+  const maxAge = process.env.PUBLIC_CATALOG_HTTP_MAX_AGE ?? "60";
+  const sMaxAge = process.env.PUBLIC_CATALOG_HTTP_S_MAXAGE ?? "600";
+  const swr = process.env.PUBLIC_CATALOG_HTTP_STALE_WHILE_REVALIDATE ?? "3600";
   setHeader(
     "Cache-Control",
     `public, max-age=${maxAge}, s-maxage=${sMaxAge}, stale-while-revalidate=${swr}`,

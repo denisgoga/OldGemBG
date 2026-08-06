@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { compressImageFile } from "@/lib/compressImageFile";
 
 /** Must match Supabase Storage bucket id (create in dashboard or run migration SQL). */
 export const VIDEO_THUMB_BUCKET =
@@ -31,16 +32,17 @@ export function storagePathFromPublicUrl(url: string): string | null {
 
 /** Banner creatives in same bucket under `banners/` (matches admin uploads). */
 export async function uploadHomepageBannerFile(file: File): Promise<string> {
-  const rawExt = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const optimized = await compressImageFile(file);
+  const rawExt = optimized.name.split(".").pop()?.toLowerCase() ?? "";
   const safeExt = ALLOWED_EXT.has(rawExt) ? rawExt : "jpg";
   const path = `banners/${crypto.randomUUID()}.${safeExt}`;
 
   const { error } = await supabase.storage
     .from(VIDEO_THUMB_BUCKET)
-    .upload(path, file, {
+    .upload(path, optimized, {
       cacheControl: "86400",
       upsert: false,
-      contentType: file.type || `image/${safeExt === "jpg" ? "jpeg" : safeExt}`,
+      contentType: optimized.type || `image/${safeExt === "jpg" ? "jpeg" : safeExt}`,
     });
 
   if (error) throw error;
@@ -50,16 +52,17 @@ export async function uploadHomepageBannerFile(file: File): Promise<string> {
 }
 
 export async function uploadVideoThumbnailFile(file: File): Promise<string> {
-  const rawExt = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const optimized = await compressImageFile(file);
+  const rawExt = optimized.name.split(".").pop()?.toLowerCase() ?? "";
   const safeExt = ALLOWED_EXT.has(rawExt) ? rawExt : "jpg";
   const path = `videos/${crypto.randomUUID()}.${safeExt}`;
 
   const { error } = await supabase.storage
     .from(VIDEO_THUMB_BUCKET)
-    .upload(path, file, {
+    .upload(path, optimized, {
       cacheControl: "31536000",
       upsert: false,
-      contentType: file.type || `image/${safeExt === "jpg" ? "jpeg" : safeExt}`,
+      contentType: optimized.type || `image/${safeExt === "jpg" ? "jpeg" : safeExt}`,
     });
 
   if (error) throw error;

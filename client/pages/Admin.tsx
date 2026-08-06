@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Trash2, Plus, Settings, LogOut, ArrowUp, ArrowDown, Pencil, Code2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Trash2, Plus, Settings, LogOut, ArrowUp, ArrowDown, Pencil, Code2, Film, LayoutGrid } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -21,6 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SUPPORTED_LOCALES, type Locale } from "@/i18n/locales";
 import { getPopupStringsForLocale, getSiteStringsForLocale } from "@/i18n/dbTranslation";
+import { HomepageBannerAd } from "@/components/HomepageBannerAd";
 
 export default function Admin() {
   const [videos, setVideos] = useState<Video[]>([]);
@@ -93,6 +94,18 @@ export default function Admin() {
     () => localeSegment as Locale,
   );
   const { toast } = useToast();
+  const fetchVideosDebounceRef = useRef<number | null>(null);
+  const skipVideosRealtimeRef = useRef(false);
+
+  const scheduleFetchVideos = () => {
+    if (skipVideosRealtimeRef.current) return;
+    const prev = fetchVideosDebounceRef.current;
+    if (prev !== null) window.clearTimeout(prev);
+    fetchVideosDebounceRef.current = window.setTimeout(() => {
+      fetchVideosDebounceRef.current = null;
+      void fetchVideos();
+    }, 900);
+  };
 
   const handleLogout = async () => {
     try {
@@ -109,18 +122,18 @@ export default function Admin() {
 
   // Load initial data
   useEffect(() => {
-    fetchVideos();
-    fetchPopupSettings();
-    fetchSiteSettings();
-    fetchHomepageBanners();
-    subscribeToChanges();
+    void fetchVideos();
+    void fetchPopupSettings();
+    void fetchSiteSettings();
+    void fetchHomepageBanners();
+    return subscribeToChanges();
   }, []);
 
   const fetchVideos = async () => {
     try {
       const { data, error } = await supabase
         .from("videos")
-        .select("*")
+        .select("id, title, duration, thumbnail, sort_order, created_at")
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: false });
 
@@ -522,7 +535,7 @@ export default function Admin() {
         "postgres_changes",
         { event: "*", schema: "public", table: "videos" },
         () => {
-          fetchVideos();
+          scheduleFetchVideos();
         }
       )
       .subscribe();
@@ -658,36 +671,29 @@ export default function Admin() {
         setEditingVideoId(null);
         toast({ title: "Success", description: "Video updated!" });
       } else {
-        const updatedAt = new Date().toISOString();
+        const minOrder = videos.reduce(
+          (min, video) => Math.min(min, video.sort_order ?? 0),
+          0,
+        );
 
-        if (videos.length > 0) {
-          const shiftResults = await Promise.all(
-            videos.map((video, index) =>
-              supabase
-                .from("videos")
-                .update({ sort_order: index + 1, updated_at: updatedAt })
-                .eq("id", video.id),
-            ),
-          );
-          const shiftErr = shiftResults.find((r) => r.error)?.error;
-          if (shiftErr) throw shiftErr;
-        }
-
+        skipVideosRealtimeRef.current = true;
         const { error } = await supabase.from("videos").insert([
           {
             title: formData.title,
             duration: formData.duration,
             thumbnail: thumbUrl,
-            sort_order: 0,
+            sort_order: minOrder - 1,
           },
         ]);
+        skipVideosRealtimeRef.current = false;
         if (error) throw error;
         toast({ title: "Success", description: "Video added successfully!" });
       }
 
       resetVideoForm();
-      fetchVideos();
+      await fetchVideos();
     } catch (error) {
+      skipVideosRealtimeRef.current = false;
       console.error("Error adding video:", error);
       toast({
         title: "Error",
@@ -1010,7 +1016,7 @@ export default function Admin() {
             <div>
               <h1 className="text-3xl font-bold">Admin Dashboard</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Manage videos and popup settings
+                Manage videos, banners, SEO, scripts, and popup settings
               </p>
             </div>
             <button
@@ -1025,10 +1031,24 @@ export default function Admin() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Add Video Form */}
-          <div className="lg:col-span-2">
-            <div className="space-y-8">
+        <Tabs defaultValue="videos" className="space-y-6">
+          <TabsList className="grid w-full max-w-lg grid-cols-3 h-auto gap-1 p-1">
+            <TabsTrigger value="videos" className="gap-1.5 py-2.5 text-xs sm:text-sm">
+              <Film size={15} className="shrink-0" />
+              Videos
+            </TabsTrigger>
+            <TabsTrigger value="banners" className="gap-1.5 py-2.5 text-xs sm:text-sm">
+              <LayoutGrid size={15} className="shrink-0" />
+              Banners
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1.5 py-2.5 text-xs sm:text-sm">
+              <Settings size={15} className="shrink-0" />
+              Settings
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="videos" className="mt-0 focus-visible:outline-none">
+            <div className="space-y-8 max-w-4xl">
               {/* Add Video Section */}
               <div className="border border-border rounded-lg p-6 bg-card">
                 <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -1143,6 +1163,7 @@ export default function Admin() {
                         <img
                           src={video.thumbnail}
                           alt={video.title}
+                          loading="lazy"
                           className="w-20 h-20 object-cover rounded"
                         />
                         <div className="flex-1">
@@ -1206,7 +1227,11 @@ export default function Admin() {
                   </p>
                 )}
               </div>
+            </div>
+          </TabsContent>
 
+          <TabsContent value="banners" className="mt-0 focus-visible:outline-none">
+            <div className="max-w-3xl">
               {/* Homepage grid banners (after every 3 thumbnails on the site) */}
               <div className="border border-border rounded-lg p-6 bg-card">
                 <h2 className="text-xl font-bold mb-2">Homepage banners</h2>
@@ -1251,12 +1276,16 @@ export default function Admin() {
                       />
                     </div>
                     {bannerImagePreview && (
-                      <div>
+                      <div className="max-w-sm">
                         <p className="text-xs text-muted-foreground mb-2">Preview</p>
-                        <img
-                          src={bannerImagePreview}
-                          alt=""
-                          className="max-w-[300px] max-h-[250px] object-contain rounded border border-border"
+                        <HomepageBannerAd
+                          banner={{
+                            id: "preview",
+                            image_url: bannerImagePreview,
+                            link_url: bannerForm.link_url.trim() || null,
+                            size: bannerForm.size,
+                            alt_text: bannerForm.alt_text,
+                          }}
                         />
                       </div>
                     )}
@@ -1446,10 +1475,10 @@ export default function Admin() {
                 )}
               </div>
             </div>
-          </div>
+          </TabsContent>
 
-          {/* Right Column: settings sidebar (scrollable) */}
-          <div className="space-y-4 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
+          <TabsContent value="settings" className="mt-0 focus-visible:outline-none">
+            <div className="max-w-2xl space-y-4">
             <div className="border border-border rounded-lg p-4 bg-card">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
@@ -1976,8 +2005,9 @@ export default function Admin() {
                 </div>
               </TabsContent>
             </Tabs>
-          </div>
-        </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

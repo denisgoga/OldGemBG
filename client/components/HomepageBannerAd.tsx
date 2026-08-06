@@ -2,78 +2,66 @@ import type { PublicHomepageBanner } from "@shared/api";
 import { cn } from "@/lib/utils";
 import { CATALOG_THUMBNAIL_FRAME_CLASS } from "@/components/VideoCard";
 
-const FIXED_IMG_BOX: Partial<Record<PublicHomepageBanner["size"], string>> = {
-  "300x250": "w-[300px] h-[250px]",
-  "300x100": "w-[300px] h-[100px]",
-};
-
 type Props = { banner: PublicHomepageBanner };
 
-/** One column cell width matching `grid gap-6` + breakpoints in catalog grid */
-const NATIVE_WIDTH =
-  "w-full shrink-0 sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)] mx-auto";
+const SIZE_CLASS: Record<PublicHomepageBanner["size"], string> = {
+  native: "h-64",
+  "300x250": "h-64",
+  "300x100": "h-32",
+};
 
 export function HomepageBannerAd({ banner }: Props) {
   const alt = banner.alt_text?.trim() || "Advertisement";
   const link = banner.link_url?.trim();
+  const outbound = link ? /^https?:\/\//i.test(link) : false;
+  const heightClass = SIZE_CLASS[banner.size] ?? SIZE_CLASS.native;
 
-  if (banner.size === "native") {
-    const shell = cn(
-      CATALOG_THUMBNAIL_FRAME_CLASS,
-      NATIVE_WIDTH,
-      "block overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-    );
-    const nativeImg = (
-      <img
-        src={banner.image_url}
-        alt={alt}
-        className="h-full w-full object-cover bg-card"
-        loading="lazy"
-        decoding="async"
-      />
-    );
-    const outbound = link ? /^https?:\/\//i.test(link) : false;
-    if (link) {
-      return (
-        <a
-          href={link}
-          className={shell}
-          {...(outbound ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-        >
-          {nativeImg}
-        </a>
-      );
-    }
-    return <div className={shell}>{nativeImg}</div>;
-  }
+  const shell = cn(
+    CATALOG_THUMBNAIL_FRAME_CLASS,
+    heightClass,
+    "group block w-full overflow-hidden transition-all duration-300",
+    link
+      ? "cursor-pointer hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      : "cursor-default",
+  );
 
-  const box = FIXED_IMG_BOX[banner.size] ?? FIXED_IMG_BOX["300x250"]!;
-  const img = (
+  const image = (
     <img
       src={banner.image_url}
       alt={alt}
-      className={`${box} object-contain bg-card`}
       loading="lazy"
       decoding="async"
+      className={cn(
+        "h-full w-full bg-card transition-transform duration-300",
+        banner.size === "300x100" ? "object-contain p-2" : "object-cover group-hover:scale-[1.02]",
+      )}
     />
   );
 
+  const label = (
+    <span className="pointer-events-none absolute left-3 top-3 z-10 rounded bg-black/55 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/90">
+      Ad
+    </span>
+  );
+
   if (link) {
-    const outbound = /^https?:\/\//i.test(link);
     return (
       <a
         href={link}
-        className="block max-w-[300px] w-full mx-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md overflow-hidden"
-        {...(outbound ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+        className={cn(shell, "relative")}
+        {...(outbound ? { target: "_blank", rel: "noopener noreferrer sponsored" } : {})}
+        aria-label={alt}
       >
-        {img}
+        {label}
+        {image}
       </a>
     );
   }
 
   return (
-    <div className="max-w-[300px] w-full mx-auto rounded-md overflow-hidden border border-border">
-      {img}
+    <div className={cn(shell, "relative")} role="img" aria-label={alt}>
+      {label}
+      {image}
     </div>
   );
 }

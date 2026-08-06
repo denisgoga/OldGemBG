@@ -24,7 +24,7 @@ function parseClientCatalogCacheTtlMs(): number {
     const n = Number.parseInt(String(raw), 10);
     if (Number.isFinite(n) && n >= 0) return n;
   }
-  return 20_000;
+  return 120_000;
 }
 
 type Cached = { data: PublicCatalogResponse; expiresAt: number };
