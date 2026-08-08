@@ -8,15 +8,46 @@ function isAdminPath(pathname: string) {
   return /\/admin(-login)?(\/|$)/.test(pathname);
 }
 
+/**
+ * Classic popunder: open blank tab during user gesture, navigate, then refocus main window.
+ * Do not pass noopener — it prevents blur() and the tab stays on top as a popup.
+ */
 function openPopunder(url: string) {
-  const popup = window.open(url, "_blank", "noopener,noreferrer");
-  if (popup) {
+  const pop = window.open("about:blank", "_blank");
+  if (!pop) return;
+
+  try {
+    pop.location.replace(url);
+  } catch {
     try {
-      popup.blur();
+      pop.location.href = url;
+    } catch {
+      pop.close();
+      return;
+    }
+  }
+
+  const refocusMain = () => {
+    try {
+      pop.blur();
     } catch {
       /* ignore */
     }
-    window.focus();
+    try {
+      window.focus();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  refocusMain();
+  window.setTimeout(refocusMain, 0);
+  window.setTimeout(refocusMain, 100);
+
+  try {
+    pop.opener = null;
+  } catch {
+    /* ignore */
   }
 }
 
@@ -33,15 +64,17 @@ export function SitePopunder() {
     const attachListener = () => {
       if (!settings?.enabled || !settings.url) return;
 
-      const onClick = () => {
+      const onPointerDown = (event: PointerEvent) => {
+        if (event.button !== 0) return;
         if (sessionStorage.getItem(SESSION_KEY) === "true") return;
         sessionStorage.setItem(SESSION_KEY, "true");
         openPopunder(settings!.url);
-        document.removeEventListener("click", onClick, true);
+        document.removeEventListener("pointerdown", onPointerDown, true);
       };
 
-      document.addEventListener("click", onClick, true);
-      return () => document.removeEventListener("click", onClick, true);
+      document.addEventListener("pointerdown", onPointerDown, true);
+      return () =>
+        document.removeEventListener("pointerdown", onPointerDown, true);
     };
 
     let detachClick: (() => void) | undefined;
