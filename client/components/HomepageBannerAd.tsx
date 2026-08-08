@@ -70,12 +70,7 @@ export function HomepageBannerAd({ banner }: Props) {
         alt={alt}
         loading="lazy"
         decoding="async"
-        className={cn(
-          "h-full w-full bg-card transition-transform duration-300",
-          banner.size === "300x100"
-            ? "object-contain p-2"
-            : "object-cover group-hover:scale-[1.02]",
-        )}
+        className="h-full w-full bg-card object-contain object-center"
       />
     );
   }
