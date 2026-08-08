@@ -37,7 +37,7 @@ const catalogUrl =
   import.meta.env.VITE_PUBLIC_CATALOG_URL?.trim() || "/api/public/catalog";
 
 /** Items per page (must match default limit on `/api/public/catalog`). */
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 9;
 
 const VIDEO_QUERY_TIMEOUT_MS = 25_000;
 
@@ -80,40 +80,45 @@ function mapRowsToPublicBanners(rows: unknown[] | null): PublicHomepageBanner[] 
   });
 }
 
-/** After every third video thumbnail, inserts one rotating banner slot. */
-function buildCatalogGridSlots(
+/** Fixed banner slots: [0]=below header, [1] after 3rd thumb, [2] after 6th, [3] after 9th. */
+function buildCatalogLayout(
   videoList: Video[],
   bannerList: PublicHomepageBanner[],
-): Array<
-  | { kind: "video"; video: Video }
-  | {
-      kind: "banner";
-      banner: PublicHomepageBanner;
-      /** Stable key suffix within the grid */
-      key: string;
-    }
-> {
-  const slots = bannerList.filter(bannerHasContent);
-  if (slots.length === 0) {
-    return videoList.map((video) => ({ kind: "video" as const, video }));
-  }
-  let bannerTurn = 0;
-  const out: Array<
+): {
+  headerBanner: PublicHomepageBanner | null;
+  gridSlots: Array<
+    | { kind: "video"; video: Video }
+    | { kind: "banner"; banner: PublicHomepageBanner; key: string }
+  >;
+} {
+  const active = bannerList.filter(bannerHasContent);
+  const headerBanner = active[0] ?? null;
+  const gridBannerByCount: Record<3 | 6 | 9, PublicHomepageBanner | undefined> =
+    {
+      3: active[1],
+      6: active[2],
+      9: active[3],
+    };
+
+  const gridSlots: Array<
     | { kind: "video"; video: Video }
     | { kind: "banner"; banner: PublicHomepageBanner; key: string }
   > = [];
+
   videoList.forEach((video, idx) => {
-    out.push({ kind: "video", video });
-    if ((idx + 1) % 3 !== 0) return;
-    const banner = slots[bannerTurn % slots.length];
-    bannerTurn += 1;
-    out.push({
+    gridSlots.push({ kind: "video", video });
+    const count = idx + 1;
+    if (count !== 3 && count !== 6 && count !== 9) return;
+    const banner = gridBannerByCount[count as 3 | 6 | 9];
+    if (!banner) return;
+    gridSlots.push({
       kind: "banner",
       banner,
-      key: `after-${idx + 1}-${banner.id}-${bannerTurn}`,
+      key: `banner-slot-after-${count}-${banner.id}`,
     });
   });
-  return out;
+
+  return { headerBanner, gridSlots };
 }
 
 function withTimeout<T>(promiseLike: PromiseLike<T>, ms: number): Promise<T> {
@@ -507,6 +512,7 @@ export default function Index() {
   }, [siteSettings, locale]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const catalogLayout = buildCatalogLayout(videos, homepageBanners);
 
   if (loadError) {
     return (
@@ -545,8 +551,8 @@ export default function Index() {
             <Skeleton className="h-4 w-full max-w-lg" />
             <Skeleton className="h-20 w-full max-w-xl rounded-lg" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 9 }).map((_, i) => (
               <div key={i} className="rounded-lg border border-border overflow-hidden bg-card">
                 <Skeleton className="aspect-video w-full rounded-none" />
                 <div className="p-4 space-y-2">
@@ -621,6 +627,14 @@ export default function Index() {
           </div>
         </header>
 
+        {catalogLayout.headerBanner ? (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+            <aside aria-label="Advertisement" className="max-w-4xl">
+              <HomepageBannerAd banner={catalogLayout.headerBanner} />
+            </aside>
+          </div>
+        ) : null}
+
         {/* Main Content */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           <div className="mb-8">
@@ -642,12 +656,12 @@ export default function Index() {
             <>
               <div
                 className={cn(
-                  "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity",
+                  "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 transition-opacity",
                   listLoading && "opacity-60 pointer-events-none",
                 )}
                 aria-busy={listLoading}
               >
-                {buildCatalogGridSlots(videos, homepageBanners).map((slot) =>
+                {catalogLayout.gridSlots.map((slot) =>
                   slot.kind === "video" ? (
                     <VideoCard
                       key={slot.video.id}

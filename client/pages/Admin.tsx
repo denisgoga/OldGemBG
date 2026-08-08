@@ -1390,12 +1390,13 @@ export default function Admin() {
 
           <TabsContent value="banners" className="mt-0 focus-visible:outline-none">
             <div className="max-w-3xl">
-              {/* Homepage grid banners (after every 3 thumbnails on the site) */}
+              {/* Homepage banners — 4 fixed slots by sort order */}
               <div className="border border-border rounded-lg p-6 bg-card">
                 <h2 className="text-xl font-bold mb-2">Homepage banners</h2>
                 <p className="text-sm text-muted-foreground mb-6">
-                  Shown in the homepage grid after every 3 videos. Choose image, video, or custom
-                  HTML. Saving moves the banner to the top of the rotation list.
+                  Four fixed slots (by list order): #1 below site header, #2 after 3rd
+                  thumbnail, #3 after 6th, #4 after 9th. Desktop grid: 3 videos + 1 ad
+                  per row (9 videos per page).
                 </p>
 
                 {bannerFormMode !== "idle" ? (
@@ -1622,7 +1623,17 @@ export default function Admin() {
                         </div>
                         <div className="flex-1 min-w-[160px]">
                           <p className="text-xs font-medium capitalize">
-                            {b.media_type ?? "image"} · {b.size}
+                            Slot{" "}
+                            {bi === 0
+                              ? "1 · Below header"
+                              : bi === 1
+                                ? "2 · After 3rd video"
+                                : bi === 2
+                                  ? "3 · After 6th video"
+                                  : bi === 3
+                                    ? "4 · After 9th video"
+                                    : `#${bi + 1} (extra — not shown)`}{" "}
+                            · {b.media_type ?? "image"} · {b.size}
                           </p>
                           {b.link_url ? (
                             <p className="text-xs break-all mt-1">{b.link_url}</p>
