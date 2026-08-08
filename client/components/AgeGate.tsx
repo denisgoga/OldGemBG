@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Logo } from "./Logo";
 import { useLocale } from "@/i18n/LocaleContext";
 import { t } from "@/i18n/dictionary";
+import { tryOpenPopunderFromUserGesture } from "@/lib/sitePopunder";
 
 interface AgeGateProps {
   onVerified: (verified: boolean) => void;
@@ -35,6 +36,7 @@ export function AgeGate({ onVerified }: AgeGateProps) {
     sessionStorage.removeItem("ageRejected");
     setIsVerified(true);
     setRejected(false);
+    tryOpenPopunderFromUserGesture();
     onVerified(true);
   };
 

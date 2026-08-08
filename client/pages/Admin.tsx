@@ -2257,8 +2257,8 @@ export default function Admin() {
                   <div>
                     <h2 className="text-xl font-bold mb-1">Popunder</h2>
                     <p className="text-xs text-muted-foreground">
-                      Opens your link in a new tab on the visitor&apos;s first click (once per
-                      session). Not shown on admin pages. Many browsers may block popunders.
+                      Opens your link when the visitor clicks &quot;Yes&quot; on the age gate (once
+                      per session). Many browsers may block popunders.
                     </p>
                   </div>
 

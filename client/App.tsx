@@ -67,11 +67,11 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <SitePopunder />
           <AgeGate onVerified={setAgeVerified} />
           {ageVerified && (
             <BrowserRouter>
               <SiteManagedScripts />
-              <SitePopunder />
               <Routes>
                 <Route path="/:locale" element={<Index />} />
                 <Route path="/:locale/" element={<Index />} />
