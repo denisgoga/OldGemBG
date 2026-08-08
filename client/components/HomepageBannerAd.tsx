@@ -13,8 +13,9 @@ const SIZE_CLASS: Record<PublicHomepageBanner["size"], string> = {
 };
 
 export function bannerHasContent(banner: PublicHomepageBanner): boolean {
-  if (banner.media_type === "html") return !!banner.html_content?.trim();
-  if (banner.media_type === "video") return !!banner.video_url?.trim();
+  const mediaType = banner.media_type ?? "image";
+  if (mediaType === "html") return !!banner.html_content?.trim();
+  if (mediaType === "video") return !!banner.video_url?.trim();
   return !!banner.image_url?.trim();
 }
 

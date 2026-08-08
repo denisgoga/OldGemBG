@@ -80,7 +80,7 @@ function mapRowsToPublicBanners(rows: unknown[] | null): PublicHomepageBanner[] 
   });
 }
 
-/** Fixed banner slots: [0]=below header, [1] after 3rd thumb, [2] after 6th, [3] after 9th. */
+/** Fixed banner slots by admin list order: [0]=below intro, [1] after 3rd, [2] after 6th, [3] after 9th. */
 function buildCatalogLayout(
   videoList: Video[],
   bannerList: PublicHomepageBanner[],
@@ -91,32 +91,49 @@ function buildCatalogLayout(
     | { kind: "banner"; banner: PublicHomepageBanner; key: string }
   >;
 } {
-  const active = bannerList.filter(bannerHasContent);
-  const headerBanner = active[0] ?? null;
-  const gridBannerByCount: Record<3 | 6 | 9, PublicHomepageBanner | undefined> =
-    {
-      3: active[1],
-      6: active[2],
-      9: active[3],
-    };
+  const slotBanner = (index: 0 | 1 | 2 | 3): PublicHomepageBanner | null => {
+    const banner = bannerList[index];
+    return banner && bannerHasContent(banner) ? banner : null;
+  };
+
+  const headerBanner = slotBanner(0);
+  const gridBannerByCount: Record<3 | 6 | 9, PublicHomepageBanner | null> = {
+    3: slotBanner(1),
+    6: slotBanner(2),
+    9: slotBanner(3),
+  };
 
   const gridSlots: Array<
     | { kind: "video"; video: Video }
     | { kind: "banner"; banner: PublicHomepageBanner; key: string }
   > = [];
+  const placedBannerIds = new Set<string>();
 
   videoList.forEach((video, idx) => {
     gridSlots.push({ kind: "video", video });
-    const count = idx + 1;
+    const count = (idx + 1) as number;
     if (count !== 3 && count !== 6 && count !== 9) return;
     const banner = gridBannerByCount[count as 3 | 6 | 9];
-    if (!banner) return;
+    if (!banner || placedBannerIds.has(banner.id)) return;
+    placedBannerIds.add(banner.id);
     gridSlots.push({
       kind: "banner",
       banner,
       key: `banner-slot-after-${count}-${banner.id}`,
     });
   });
+
+  // If fewer than 9 videos, still show grid banners after the last video (in slot order).
+  for (const count of [3, 6, 9] as const) {
+    const banner = gridBannerByCount[count];
+    if (!banner || placedBannerIds.has(banner.id)) continue;
+    placedBannerIds.add(banner.id);
+    gridSlots.push({
+      kind: "banner",
+      banner,
+      key: `banner-slot-fallback-${count}-${banner.id}`,
+    });
+  }
 
   return { headerBanner, gridSlots };
 }
@@ -627,14 +644,6 @@ export default function Index() {
           </div>
         </header>
 
-        {catalogLayout.headerBanner ? (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-            <aside aria-label="Advertisement" className="max-w-4xl">
-              <HomepageBannerAd banner={catalogLayout.headerBanner} />
-            </aside>
-          </div>
-        ) : null}
-
         {/* Main Content */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           <div className="mb-8">
@@ -651,6 +660,12 @@ export default function Index() {
               </section>
             )}
           </div>
+
+          {catalogLayout.headerBanner ? (
+            <aside aria-label="Advertisement" className="mb-8 max-w-4xl">
+              <HomepageBannerAd banner={catalogLayout.headerBanner} />
+            </aside>
+          ) : null}
 
           {videos.length > 0 ? (
             <>
