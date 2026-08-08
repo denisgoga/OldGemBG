@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import { LocaleProvider } from "@/i18n/LocaleContext";
 import { SUPPORTED_LOCALES, type Locale } from "@/i18n/locales";
 import { SiteManagedScripts } from "@/components/SiteManagedScripts";
+import { SitePopunder } from "@/components/SitePopunder";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,7 @@ const App = () => {
           {ageVerified && (
             <BrowserRouter>
               <SiteManagedScripts />
+              <SitePopunder />
               <Routes>
                 <Route path="/:locale" element={<Index />} />
                 <Route path="/:locale/" element={<Index />} />

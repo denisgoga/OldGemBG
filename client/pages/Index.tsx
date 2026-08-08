@@ -17,7 +17,7 @@ import {
 } from "@/lib/supabase";
 import { pickAffiliateUrl } from "@/lib/pickAffiliateUrl";
 import type { PublicHomepageBanner } from "@shared/api";
-import { HomepageBannerAd } from "@/components/HomepageBannerAd";
+import { HomepageBannerAd, bannerHasContent } from "@/components/HomepageBannerAd";
 import { useLocale } from "@/i18n/LocaleContext";
 import { t } from "@/i18n/dictionary";
 import {
@@ -51,7 +51,20 @@ function mapRowsToPublicBanners(rows: unknown[] | null): PublicHomepageBanner[] 
     const linkRaw = typeof row.link_url === "string" ? row.link_url.trim() : "";
     return {
       id: String(row.id),
+      media_type:
+        row.media_type === "video" || row.media_type === "html"
+          ? row.media_type
+          : "image",
       image_url: String(row.image_url ?? ""),
+      video_url:
+        typeof row.video_url === "string" && row.video_url.trim().length > 0
+          ? row.video_url.trim()
+          : null,
+      html_content:
+        typeof row.html_content === "string" &&
+        row.html_content.trim().length > 0
+          ? row.html_content
+          : null,
       link_url: linkRaw.length > 0 ? linkRaw : null,
       size:
         row.size === "300x100"
@@ -80,7 +93,7 @@ function buildCatalogGridSlots(
       key: string;
     }
 > {
-  const slots = bannerList.filter((b) => b.image_url?.trim());
+  const slots = bannerList.filter(bannerHasContent);
   if (slots.length === 0) {
     return videoList.map((video) => ({ kind: "video" as const, video }));
   }
@@ -304,7 +317,9 @@ export default function Index() {
           .maybeSingle(),
         supabase
           .from("homepage_banners")
-          .select("id, image_url, link_url, size, alt_text")
+          .select(
+            "id, image_url, link_url, size, alt_text, media_type, video_url, html_content",
+          )
           .eq("is_active", true)
           .order("sort_order", { ascending: true, nullsFirst: false })
           .order("created_at", { ascending: true }),

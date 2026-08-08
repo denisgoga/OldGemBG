@@ -71,6 +71,28 @@ export async function uploadVideoThumbnailFile(file: File): Promise<string> {
   return data.publicUrl;
 }
 
+const VIDEO_BANNER_EXT = new Set(["mp4", "webm"]);
+
+/** Upload a short video creative for homepage banners (max bucket size applies). */
+export async function uploadHomepageBannerVideo(file: File): Promise<string> {
+  const rawExt = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const safeExt = VIDEO_BANNER_EXT.has(rawExt) ? rawExt : "mp4";
+  const path = `banners/videos/${crypto.randomUUID()}.${safeExt}`;
+
+  const { error } = await supabase.storage
+    .from(VIDEO_THUMB_BUCKET)
+    .upload(path, file, {
+      cacheControl: "86400",
+      upsert: false,
+      contentType: file.type || `video/${safeExt}`,
+    });
+
+  if (error) throw error;
+
+  const { data } = supabase.storage.from(VIDEO_THUMB_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
 /** Upload a legacy data-URL thumbnail as a file in Storage; returns public URL. */
 export async function uploadDataUrlThumbnail(dataUrl: string): Promise<string> {
   const res = await fetch(dataUrl);

@@ -67,6 +67,8 @@ export type SiteSettings = {
   head_scripts: string | null;
   /** Raw HTML injected before closing body on public pages (admin-managed). */
   body_scripts: string | null;
+  popunder_enabled?: boolean | null;
+  popunder_url?: string | null;
   // i18n JSONB map: { "en": { meta_title, ... }, "de": { ... }, ... }
   site_translations: Record<string, SiteTranslations> | null;
   created_at: string;
@@ -87,7 +89,10 @@ export type SiteTranslations = {
 
 export type HomepageBanner = {
   id: string;
+  media_type: "image" | "video" | "html";
   image_url: string;
+  video_url: string;
+  html_content: string;
   link_url: string;
   size: "300x250" | "300x100" | "native";
   is_active: boolean;

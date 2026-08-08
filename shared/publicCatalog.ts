@@ -74,7 +74,9 @@ export async function fetchPublicCatalogPayload(
       .maybeSingle(),
     supabase
       .from("homepage_banners")
-      .select("id, image_url, link_url, size, alt_text")
+      .select(
+        "id, image_url, link_url, size, alt_text, media_type, video_url, html_content",
+      )
       .eq("is_active", true)
       .order("sort_order", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: true }),
@@ -85,7 +87,18 @@ export async function fetchPublicCatalogPayload(
   const bannersRaw = bannersRes.error ? [] : (bannersRes.data ?? []);
   const banners = bannersRaw.map((row) => ({
     id: row.id as string,
-    image_url: row.image_url as string,
+    media_type: (row.media_type === "video" || row.media_type === "html"
+      ? row.media_type
+      : "image") as "image" | "video" | "html",
+    image_url: String(row.image_url ?? ""),
+    video_url:
+      typeof row.video_url === "string" && row.video_url.trim().length > 0
+        ? row.video_url.trim()
+        : null,
+    html_content:
+      typeof row.html_content === "string" && row.html_content.trim().length > 0
+        ? row.html_content
+        : null,
     link_url:
       typeof row.link_url === "string" && row.link_url.trim().length > 0
         ? row.link_url.trim()

@@ -1,13 +1,10 @@
 const MANAGED_HTML_MARKER = "data-managed-site-html";
 
-/** Inject HTML fragments (e.g. script tags) so scripts actually execute. */
-export function injectManagedHtml(
-  target: "head" | "body",
+function injectIntoParent(
+  parent: HTMLElement,
   html: string,
   slotId: string,
 ): () => void {
-  const parent = target === "head" ? document.head : document.body;
-
   parent
     .querySelectorAll(`[${MANAGED_HTML_MARKER}="${slotId}"]`)
     .forEach((node) => node.remove());
@@ -52,4 +49,23 @@ export function injectManagedHtml(
       .querySelectorAll(`[${MANAGED_HTML_MARKER}="${slotId}"]`)
       .forEach((node) => node.remove());
   };
+}
+
+/** Inject HTML fragments (e.g. script tags) so scripts actually execute. */
+export function injectManagedHtml(
+  target: "head" | "body",
+  html: string,
+  slotId: string,
+): () => void {
+  const parent = target === "head" ? document.head : document.body;
+  return injectIntoParent(parent, html, slotId);
+}
+
+/** Inject HTML into a specific container (e.g. banner slot). */
+export function injectManagedHtmlInto(
+  parent: HTMLElement,
+  html: string,
+  slotId: string,
+): () => void {
+  return injectIntoParent(parent, html, slotId);
 }

@@ -16,12 +16,14 @@ import {
   uploadDataUrlThumbnail,
   uploadVideoThumbnailFile,
   uploadHomepageBannerFile,
+  uploadHomepageBannerVideo,
 } from "@/lib/videoThumbnailStorage";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SUPPORTED_LOCALES, type Locale } from "@/i18n/locales";
 import { getPopupStringsForLocale, getSiteStringsForLocale } from "@/i18n/dbTranslation";
 import { HomepageBannerAd } from "@/components/HomepageBannerAd";
+import type { PublicHomepageBanner } from "@shared/api";
 
 export default function Admin() {
   const [videos, setVideos] = useState<Video[]>([]);
@@ -60,9 +62,12 @@ export default function Admin() {
   >("idle");
   const [editingBannerId, setEditingBannerId] = useState<string | null>(null);
   const [bannerForm, setBannerForm] = useState({
+    media_type: "image" as HomepageBanner["media_type"],
     image_url: "",
+    video_url: "",
+    html_content: "",
     link_url: "",
-    size: "300x250" as HomepageBanner["size"],
+    size: "native" as HomepageBanner["size"],
     alt_text: "Advertisement",
     is_active: true,
   });
@@ -70,7 +75,10 @@ export default function Admin() {
   const [bannerPendingFile, setBannerPendingFile] = useState<File | null>(
     null,
   );
+  const [bannerPendingVideoFile, setBannerPendingVideoFile] =
+    useState<File | null>(null);
   const [bannerSaving, setBannerSaving] = useState(false);
+  const [popunderSaving, setPopunderSaving] = useState(false);
   const [editingSite, setEditingSite] = useState(false);
   const [editingScripts, setEditingScripts] = useState(false);
   const [siteForm, setSiteForm] = useState({
@@ -83,6 +91,8 @@ export default function Admin() {
     footer_text: "",
     head_scripts: "",
     body_scripts: "",
+    popunder_enabled: false,
+    popunder_url: "",
     hide_landing_headline: false,
     hide_landing_subhead: false,
     hide_seo_intro: false,
@@ -216,30 +226,49 @@ export default function Admin() {
     setBannerFormMode("idle");
     setEditingBannerId(null);
     setBannerForm({
+      media_type: "image",
       image_url: "",
+      video_url: "",
+      html_content: "",
       link_url: "",
-      size: "300x250",
+      size: "native",
       alt_text: "Advertisement",
       is_active: true,
     });
     setBannerPendingFile(null);
+    setBannerPendingVideoFile(null);
     setBannerImagePreview((prev) => {
       if (prev.startsWith("blob:")) URL.revokeObjectURL(prev);
       return "";
     });
   };
 
+  const buildBannerPreview = (): PublicHomepageBanner => ({
+    id: editingBannerId ?? "preview",
+    media_type: bannerForm.media_type,
+    image_url: bannerImagePreview || bannerForm.image_url,
+    video_url: bannerForm.video_url.trim() || null,
+    html_content: bannerForm.html_content.trim() || null,
+    link_url: bannerForm.link_url.trim() || null,
+    size: bannerForm.size,
+    alt_text: bannerForm.alt_text.trim() || "Advertisement",
+  });
+
   const startAddBanner = () => {
     setBannerFormMode("add");
     setEditingBannerId(null);
     setBannerForm({
+      media_type: "image",
       image_url: "",
+      video_url: "",
+      html_content: "",
       link_url: "",
-      size: "300x250",
+      size: "native",
       alt_text: "Advertisement",
       is_active: true,
     });
     setBannerPendingFile(null);
+    setBannerPendingVideoFile(null);
     setBannerImagePreview((prev) => {
       if (prev.startsWith("blob:")) URL.revokeObjectURL(prev);
       return "";
@@ -250,16 +279,20 @@ export default function Admin() {
     setBannerFormMode("edit");
     setEditingBannerId(b.id);
     setBannerForm({
-      image_url: b.image_url,
+      media_type: b.media_type ?? "image",
+      image_url: b.image_url ?? "",
+      video_url: b.video_url ?? "",
+      html_content: b.html_content ?? "",
       link_url: b.link_url ?? "",
       size: b.size,
       alt_text: b.alt_text || "Advertisement",
       is_active: b.is_active,
     });
     setBannerPendingFile(null);
+    setBannerPendingVideoFile(null);
     setBannerImagePreview((prev) => {
       if (prev.startsWith("blob:")) URL.revokeObjectURL(prev);
-      return b.image_url;
+      return b.media_type === "image" ? b.image_url : "";
     });
   };
 
@@ -272,6 +305,13 @@ export default function Admin() {
     });
     setBannerPendingFile(file);
     setBannerForm((p) => ({ ...p, image_url: "" }));
+  };
+
+  const handleBannerVideoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBannerPendingVideoFile(file);
+    setBannerForm((p) => ({ ...p, video_url: "" }));
   };
 
   const handleBannerToggleActive = async (
@@ -302,12 +342,30 @@ export default function Admin() {
   const handleSaveBanner = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const hasImage =
-      !!bannerPendingFile || bannerForm.image_url.trim().length > 0;
-    if (!hasImage) {
+    if (bannerForm.media_type === "image") {
+      const hasImage =
+        !!bannerPendingFile || bannerForm.image_url.trim().length > 0;
+      if (!hasImage) {
+        toast({
+          title: "Error",
+          description: "Add an image file or paste an image URL",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else if (bannerForm.media_type === "video") {
+      if (!bannerPendingVideoFile && !bannerForm.video_url.trim()) {
+        toast({
+          title: "Error",
+          description: "Upload a video or paste a video URL (MP4/WebM)",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else if (!bannerForm.html_content.trim()) {
       toast({
         title: "Error",
-        description: "Add an image file or paste an image URL",
+        description: "Paste HTML or script code for this banner",
         variant: "destructive",
       });
       return;
@@ -316,32 +374,55 @@ export default function Admin() {
     setBannerSaving(true);
     try {
       let imageUrl = bannerForm.image_url.trim();
+      let videoUrl = bannerForm.video_url.trim();
       const previousRow = editingBannerId
         ? homepageBanners.find((x) => x.id === editingBannerId)
         : undefined;
 
-      if (bannerPendingFile) {
-        imageUrl = await uploadHomepageBannerFile(bannerPendingFile);
-        if (
-          previousRow?.image_url &&
-          isHostedVideoThumbnail(previousRow.image_url) &&
-          previousRow.image_url !== imageUrl
-        ) {
-          await deleteVideoThumbnailAtUrl(previousRow.image_url);
+      if (bannerForm.media_type === "image") {
+        if (bannerPendingFile) {
+          imageUrl = await uploadHomepageBannerFile(bannerPendingFile);
+          if (
+            previousRow?.image_url &&
+            isHostedVideoThumbnail(previousRow.image_url) &&
+            previousRow.image_url !== imageUrl
+          ) {
+            await deleteVideoThumbnailAtUrl(previousRow.image_url);
+          }
+        } else if (isDataUrlThumbnail(imageUrl)) {
+          imageUrl = await uploadDataUrlThumbnail(imageUrl);
+          if (
+            previousRow?.image_url &&
+            isHostedVideoThumbnail(previousRow.image_url) &&
+            previousRow.image_url !== imageUrl
+          ) {
+            await deleteVideoThumbnailAtUrl(previousRow.image_url);
+          }
         }
-      } else if (isDataUrlThumbnail(imageUrl)) {
-        imageUrl = await uploadDataUrlThumbnail(imageUrl);
+      } else if (bannerForm.media_type === "video" && bannerPendingVideoFile) {
+        videoUrl = await uploadHomepageBannerVideo(bannerPendingVideoFile);
         if (
-          previousRow?.image_url &&
-          isHostedVideoThumbnail(previousRow.image_url) &&
-          previousRow.image_url !== imageUrl
+          previousRow?.video_url &&
+          isHostedVideoThumbnail(previousRow.video_url) &&
+          previousRow.video_url !== videoUrl
         ) {
-          await deleteVideoThumbnailAtUrl(previousRow.image_url);
+          await deleteVideoThumbnailAtUrl(previousRow.video_url);
         }
       }
 
+      const others = editingBannerId
+        ? homepageBanners.filter((b) => b.id !== editingBannerId)
+        : homepageBanners;
+      const minOrder = others.reduce(
+        (min, b) => Math.min(min, b.sort_order ?? 0),
+        0,
+      );
+
       const row = {
-        image_url: imageUrl,
+        media_type: bannerForm.media_type,
+        image_url: bannerForm.media_type === "image" ? imageUrl : "",
+        video_url: bannerForm.media_type === "video" ? videoUrl : "",
+        html_content: bannerForm.media_type === "html" ? bannerForm.html_content : "",
         link_url: bannerForm.link_url.trim(),
         size: bannerForm.size,
         alt_text:
@@ -349,6 +430,7 @@ export default function Admin() {
             ? bannerForm.alt_text.trim()
             : "Advertisement",
         is_active: bannerForm.is_active,
+        sort_order: minOrder - 1,
         updated_at: new Date().toISOString(),
       };
 
@@ -358,14 +440,9 @@ export default function Admin() {
           .update(row)
           .eq("id", editingBannerId);
         if (error) throw error;
-        toast({ title: "Saved", description: "Banner updated." });
+        toast({ title: "Saved", description: "Banner updated and moved to top." });
       } else {
-        const { error } = await supabase.from("homepage_banners").insert([
-          {
-            ...row,
-            sort_order: homepageBanners.length,
-          },
-        ]);
+        const { error } = await supabase.from("homepage_banners").insert([row]);
         if (error) throw error;
         toast({ title: "Saved", description: "Banner added." });
       }
@@ -472,6 +549,8 @@ export default function Admin() {
           footer_text: strings.footer_text ?? "",
           head_scripts: data.head_scripts ?? "",
           body_scripts: data.body_scripts ?? "",
+          popunder_enabled: !!data.popunder_enabled,
+          popunder_url: data.popunder_url ?? "",
           hide_landing_headline: strings.hide_landing_headline,
           hide_landing_subhead: strings.hide_landing_subhead,
           hide_seo_intro: strings.hide_seo_intro,
@@ -521,6 +600,8 @@ export default function Admin() {
       footer_text: strings.footer_text ?? "",
       head_scripts: siteSettings.head_scripts ?? "",
       body_scripts: siteSettings.body_scripts ?? "",
+      popunder_enabled: !!siteSettings.popunder_enabled,
+      popunder_url: siteSettings.popunder_url ?? "",
       hide_landing_headline: strings.hide_landing_headline,
       hide_landing_subhead: strings.hide_landing_subhead,
       hide_seo_intro: strings.hide_seo_intro,
@@ -650,12 +731,20 @@ export default function Admin() {
         : undefined;
 
       if (editingVideoId) {
+        const others = videos.filter((v) => v.id !== editingVideoId);
+        const minOrder = others.reduce(
+          (min, video) => Math.min(min, video.sort_order ?? 0),
+          0,
+        );
+
         const { error } = await supabase
           .from("videos")
           .update({
             title: formData.title,
             duration: formData.duration,
             thumbnail: thumbUrl,
+            sort_order: minOrder - 1,
+            updated_at: new Date().toISOString(),
           })
           .eq("id", editingVideoId);
         if (error) throw error;
@@ -669,7 +758,7 @@ export default function Admin() {
         }
 
         setEditingVideoId(null);
-        toast({ title: "Success", description: "Video updated!" });
+        toast({ title: "Success", description: "Video updated and moved to top!" });
       } else {
         const minOrder = videos.reduce(
           (min, video) => Math.min(min, video.sort_order ?? 0),
@@ -897,6 +986,75 @@ export default function Admin() {
   ) => {
     const { name, checked } = e.target;
     setSiteForm((prev) => ({ ...prev, [name]: checked }));
+  };
+
+  const handlePopunderEnabledChange = async (checked: boolean) => {
+    if (!siteSettings) return;
+    setPopunderSaving(true);
+    try {
+      const { error } = await supabase
+        .from("site_settings")
+        .update({
+          popunder_enabled: checked,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", siteSettings.id);
+      if (error) throw error;
+      setSiteSettings((prev) =>
+        prev ? { ...prev, popunder_enabled: checked } : prev,
+      );
+      setSiteForm((prev) => ({ ...prev, popunder_enabled: checked }));
+      toast({
+        title: "Updated",
+        description: checked ? "Popunder enabled." : "Popunder disabled.",
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Could not update popunder setting",
+        variant: "destructive",
+      });
+    } finally {
+      setPopunderSaving(false);
+    }
+  };
+
+  const handleSavePopunder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!siteSettings) return;
+    setPopunderSaving(true);
+    try {
+      const url = siteForm.popunder_url.trim();
+      const { error } = await supabase
+        .from("site_settings")
+        .update({
+          popunder_url: url,
+          popunder_enabled: url.length > 0 ? siteForm.popunder_enabled : false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", siteSettings.id);
+      if (error) throw error;
+      setSiteSettings((prev) =>
+        prev
+          ? {
+              ...prev,
+              popunder_url: url,
+              popunder_enabled: url.length > 0 ? siteForm.popunder_enabled : false,
+            }
+          : prev,
+      );
+      toast({ title: "Saved", description: "Popunder URL saved." });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to save popunder URL",
+        variant: "destructive",
+      });
+    } finally {
+      setPopunderSaving(false);
+    }
   };
 
   const closeAllSettingsEditing = () => {
@@ -1236,59 +1394,123 @@ export default function Admin() {
               <div className="border border-border rounded-lg p-6 bg-card">
                 <h2 className="text-xl font-bold mb-2">Homepage banners</h2>
                 <p className="text-sm text-muted-foreground mb-6">
-                  One banner slot is shown after each group of three video thumbnails. If you add
-                  several active banners, they rotate in list order. Sizes: 300×250, 300×100, or{" "}
-                  Native (matches thumbnail cards: same height as the grid thumbnails, one-column
-                  width per breakpoint).
+                  Shown in the homepage grid after every 3 videos. Choose image, video, or custom
+                  HTML. Saving moves the banner to the top of the rotation list.
                 </p>
 
                 {bannerFormMode !== "idle" ? (
-                  <form onSubmit={handleSaveBanner} className="space-y-4 mb-8">
+                  <form onSubmit={handleSaveBanner} className="space-y-5 mb-8 rounded-lg border border-border bg-secondary/30 p-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Banner image
-                      </label>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Upload (stored in{" "}
-                        <code className="rounded bg-secondary px-1">video-thumbnails</code>{" "}
-                        under <code className="rounded bg-secondary px-1">banners/</code>) or
-                        paste a URL.
-                      </p>
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
-                        onChange={handleBannerImageFile}
-                        className="w-full"
-                        disabled={bannerSaving}
-                      />
-                      <input
-                        type="url"
-                        value={bannerForm.image_url}
-                        onChange={(e) =>
-                          setBannerForm((p) => ({
-                            ...p,
-                            image_url: e.target.value,
-                          }))
-                        }
-                        placeholder="https://…"
-                        className="w-full mt-2 px-4 py-2 bg-input border border-border rounded-lg text-sm"
-                        disabled={bannerSaving || !!bannerPendingFile}
-                      />
+                      <label className="block text-sm font-medium mb-2">Banner type</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(
+                          [
+                            ["image", "Image"],
+                            ["video", "Video"],
+                            ["html", "HTML / Script"],
+                          ] as const
+                        ).map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            disabled={bannerSaving}
+                            onClick={() =>
+                              setBannerForm((p) => ({ ...p, media_type: value }))
+                            }
+                            className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                              bannerForm.media_type === value
+                                ? "border-primary bg-primary/15 text-primary"
+                                : "border-border bg-card hover:border-primary/50"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    {bannerImagePreview && (
-                      <div className="max-w-sm">
-                        <p className="text-xs text-muted-foreground mb-2">Preview</p>
-                        <HomepageBannerAd
-                          banner={{
-                            id: "preview",
-                            image_url: bannerImagePreview,
-                            link_url: bannerForm.link_url.trim() || null,
-                            size: bannerForm.size,
-                            alt_text: bannerForm.alt_text,
-                          }}
+
+                    {bannerForm.media_type === "image" ? (
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium">Image</label>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
+                          onChange={handleBannerImageFile}
+                          className="w-full text-sm"
+                          disabled={bannerSaving}
+                        />
+                        <input
+                          type="url"
+                          value={bannerForm.image_url}
+                          onChange={(e) =>
+                            setBannerForm((p) => ({
+                              ...p,
+                              image_url: e.target.value,
+                            }))
+                          }
+                          placeholder="Or paste image URL"
+                          className="w-full px-3 py-2 bg-input border border-border rounded-lg text-sm"
+                          disabled={bannerSaving || !!bannerPendingFile}
                         />
                       </div>
-                    )}
+                    ) : null}
+
+                    {bannerForm.media_type === "video" ? (
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium">Video (MP4 / WebM)</label>
+                        <input
+                          type="file"
+                          accept="video/mp4,video/webm"
+                          onChange={handleBannerVideoFile}
+                          className="w-full text-sm"
+                          disabled={bannerSaving}
+                        />
+                        <input
+                          type="url"
+                          value={bannerForm.video_url}
+                          onChange={(e) =>
+                            setBannerForm((p) => ({
+                              ...p,
+                              video_url: e.target.value,
+                            }))
+                          }
+                          placeholder="Or paste video URL"
+                          className="w-full px-3 py-2 bg-input border border-border rounded-lg text-sm"
+                          disabled={bannerSaving || !!bannerPendingVideoFile}
+                        />
+                        <p className="text-[11px] text-muted-foreground">
+                          Uploaded files must be under 5 MB (Supabase bucket limit).
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {bannerForm.media_type === "html" ? (
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          HTML / scripts
+                        </label>
+                        <textarea
+                          value={bannerForm.html_content}
+                          onChange={(e) =>
+                            setBannerForm((p) => ({
+                              ...p,
+                              html_content: e.target.value,
+                            }))
+                          }
+                          rows={8}
+                          spellCheck={false}
+                          placeholder={'<div>...</div>\n<script>...</script>'}
+                          className="w-full px-3 py-2 bg-input border border-border rounded-lg text-xs font-mono leading-relaxed resize-y min-h-[10rem]"
+                          disabled={bannerSaving}
+                        />
+                      </div>
+                    ) : null}
+
+                    <div className="max-w-sm">
+                      <p className="text-xs text-muted-foreground mb-2">Live preview</p>
+                      <HomepageBannerAd banner={buildBannerPreview()} />
+                    </div>
+
                     <div>
                       <label className="block text-sm font-medium mb-1">
                         Click URL (optional)
@@ -1300,7 +1522,7 @@ export default function Admin() {
                           setBannerForm((p) => ({ ...p, link_url: e.target.value }))
                         }
                         placeholder="https://…"
-                        className="w-full px-4 py-2 bg-input border border-border rounded-lg text-sm"
+                        className="w-full px-3 py-2 bg-input border border-border rounded-lg text-sm"
                         disabled={bannerSaving}
                       />
                     </div>
@@ -1318,9 +1540,9 @@ export default function Admin() {
                           className="px-3 py-2 bg-input border border-border rounded-lg text-sm"
                           disabled={bannerSaving}
                         >
+                          <option value="native">Native (recommended)</option>
                           <option value="300x250">300 × 250</option>
                           <option value="300x100">300 × 100</option>
-                          <option value="native">Native (same as thumbnails)</option>
                         </select>
                       </div>
                       <label className="flex items-center gap-2 text-sm">
@@ -1345,23 +1567,23 @@ export default function Admin() {
                             alt_text: e.target.value,
                           }))
                         }
-                        className="w-full px-4 py-2 bg-input border border-border rounded-lg text-sm"
+                        className="w-full px-3 py-2 bg-input border border-border rounded-lg text-sm"
                         disabled={bannerSaving}
                       />
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 pt-2 border-t border-border">
                       <button
                         type="submit"
                         disabled={bannerSaving}
-                        className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground font-semibold py-2 rounded-lg text-sm"
+                        className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground font-semibold py-2.5 rounded-lg text-sm"
                       >
-                        {bannerSaving ? "Saving…" : editingBannerId ? "Update banner" : "Add banner"}
+                        {bannerSaving ? "Saving…" : editingBannerId ? "Save banner" : "Add banner"}
                       </button>
                       <button
                         type="button"
                         disabled={bannerSaving}
                         onClick={resetBannerForm}
-                        className="px-4 bg-secondary hover:bg-secondary/80 text-foreground font-semibold py-2 rounded-lg text-sm"
+                        className="px-4 bg-secondary hover:bg-secondary/80 text-foreground font-semibold py-2.5 rounded-lg text-sm"
                       >
                         Cancel
                       </button>
@@ -1384,13 +1606,24 @@ export default function Admin() {
                         key={b.id}
                         className="flex flex-wrap gap-3 p-4 bg-secondary rounded-lg border border-border items-center"
                       >
-                        <img
-                          src={b.image_url}
-                          alt=""
-                          className="w-[120px] h-[60px] object-contain rounded border border-border bg-card shrink-0"
-                        />
+                        <div className="w-[140px] shrink-0">
+                          <HomepageBannerAd
+                            banner={{
+                              id: b.id,
+                              media_type: b.media_type ?? "image",
+                              image_url: b.image_url ?? "",
+                              video_url: b.video_url?.trim() || null,
+                              html_content: b.html_content?.trim() || null,
+                              link_url: b.link_url?.trim() || null,
+                              size: b.size,
+                              alt_text: b.alt_text,
+                            }}
+                          />
+                        </div>
                         <div className="flex-1 min-w-[160px]">
-                          <p className="text-xs text-muted-foreground">{b.size}</p>
+                          <p className="text-xs font-medium capitalize">
+                            {b.media_type ?? "image"} · {b.size}
+                          </p>
                           {b.link_url ? (
                             <p className="text-xs break-all mt-1">{b.link_url}</p>
                           ) : (
@@ -1511,7 +1744,7 @@ export default function Admin() {
             </div>
 
             <Tabs defaultValue="site" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 h-auto gap-1 p-1">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1 p-1">
                 <TabsTrigger value="site" className="text-xs py-2.5">
                   Site & SEO
                 </TabsTrigger>
@@ -1520,6 +1753,9 @@ export default function Admin() {
                 </TabsTrigger>
                 <TabsTrigger value="popup" className="text-xs py-2.5">
                   Popup
+                </TabsTrigger>
+                <TabsTrigger value="popunder" className="text-xs py-2.5">
+                  Popunder
                 </TabsTrigger>
               </TabsList>
 
@@ -2002,6 +2238,54 @@ export default function Admin() {
                   </div>
                 </form>
               )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="popunder" className="mt-4 focus-visible:outline-none">
+                <div className="border border-border rounded-lg p-6 bg-card space-y-5">
+                  <div>
+                    <h2 className="text-xl font-bold mb-1">Popunder</h2>
+                    <p className="text-xs text-muted-foreground">
+                      Opens your link in a new tab on the visitor&apos;s first click (once per
+                      session). Not shown on admin pages. Many browsers may block popunders.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/60 p-3">
+                    <div>
+                      <p className="text-sm font-medium">Enable popunder</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Requires a saved URL below.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={siteForm.popunder_enabled}
+                      onCheckedChange={handlePopunderEnabledChange}
+                      disabled={popunderSaving || !siteSettings || !siteForm.popunder_url.trim()}
+                    />
+                  </div>
+
+                  <form onSubmit={handleSavePopunder} className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Popunder URL</label>
+                      <input
+                        type="url"
+                        name="popunder_url"
+                        value={siteForm.popunder_url}
+                        onChange={handleSiteFormChange}
+                        placeholder="https://your-offer.com"
+                        className="w-full px-3 py-2 bg-input border border-border rounded-lg text-sm"
+                        disabled={popunderSaving || !siteSettings}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={popunderSaving || !siteSettings}
+                      className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground font-semibold py-2.5 rounded-lg text-sm"
+                    >
+                      {popunderSaving ? "Saving…" : "Save popunder URL"}
+                    </button>
+                  </form>
                 </div>
               </TabsContent>
             </Tabs>

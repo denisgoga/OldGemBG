@@ -29,7 +29,10 @@ export type PublicCatalogSiteSettings = {
 /** Active homepage grid banners returned from `/api/public/catalog` */
 export type PublicHomepageBanner = {
   id: string;
+  media_type: "image" | "video" | "html";
   image_url: string;
+  video_url: string | null;
+  html_content: string | null;
   /** Optional outbound click URL */
   link_url: string | null;
   /** IAB-style slots, or native (matches homepage thumbnail card footprint) */
