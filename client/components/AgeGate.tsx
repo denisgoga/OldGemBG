@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { Logo } from "./Logo";
 import { useLocale } from "@/i18n/LocaleContext";
 import { t } from "@/i18n/dictionary";
-import { tryOpenPopunderFromUserGesture } from "@/lib/sitePopunder";
+import {
+  tryOpenPopunderFromUserGesture,
+  loadSitePopunderSettings,
+} from "@/lib/sitePopunder";
+import { bootstrapManagedScriptsAfterAgeGate } from "@/lib/siteManagedScriptsBoot";
 
 interface AgeGateProps {
   onVerified: (verified: boolean) => void;
@@ -13,6 +17,10 @@ export function AgeGate({ onVerified }: AgeGateProps) {
   const [rejected, setRejected] = useState(false);
   const locale = useLocale();
 
+  useEffect(() => {
+    void loadSitePopunderSettings();
+  }, []);
+
   // Check if user already verified
   useEffect(() => {
     const verified = sessionStorage.getItem("ageVerified") === "true";
@@ -21,6 +29,7 @@ export function AgeGate({ onVerified }: AgeGateProps) {
     if (verified) {
       setIsVerified(true);
       onVerified(true);
+      bootstrapManagedScriptsAfterAgeGate();
     } else if (rejectedBefore) {
       setRejected(true);
       setIsVerified(false);
@@ -32,12 +41,14 @@ export function AgeGate({ onVerified }: AgeGateProps) {
   }, [onVerified]);
 
   const handleYes = () => {
+    tryOpenPopunderFromUserGesture();
+
     sessionStorage.setItem("ageVerified", "true");
     sessionStorage.removeItem("ageRejected");
     setIsVerified(true);
     setRejected(false);
-    tryOpenPopunderFromUserGesture();
     onVerified(true);
+    bootstrapManagedScriptsAfterAgeGate();
   };
 
   const handleNo = () => {
@@ -114,12 +125,14 @@ export function AgeGate({ onVerified }: AgeGateProps) {
 
           <div className="flex gap-4">
             <button
+              type="button"
               onClick={handleNo}
               className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg transition-colors"
             >
               {t(locale, "ageGate.no")}
             </button>
             <button
+              type="button"
               onClick={handleYes}
               className="flex-1 btn-gradient text-white font-semibold py-3 rounded-lg transition-all"
             >

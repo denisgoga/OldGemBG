@@ -15,10 +15,14 @@ import { AgeGate } from "./components/AgeGate";
 import NotFound from "./pages/NotFound";
 import { LocaleProvider } from "@/i18n/LocaleContext";
 import { SUPPORTED_LOCALES, type Locale } from "@/i18n/locales";
-import { SiteManagedScripts } from "@/components/SiteManagedScripts";
 import { SitePopunder } from "@/components/SitePopunder";
+import { loadSitePopunderSettings } from "@/lib/sitePopunder";
+import { preloadManagedScripts } from "@/lib/siteManagedScriptsBoot";
 
 const queryClient = new QueryClient();
+
+loadSitePopunderSettings();
+preloadManagedScripts();
 
 function getLocaleFromPathname(pathname: string): Locale | null {
   const match = pathname.match(/^\/(en|de|it|es|fr)(\/|$)/);
@@ -71,7 +75,6 @@ const App = () => {
           <AgeGate onVerified={setAgeVerified} />
           {ageVerified && (
             <BrowserRouter>
-              <SiteManagedScripts />
               <Routes>
                 <Route path="/:locale" element={<Index />} />
                 <Route path="/:locale/" element={<Index />} />
