@@ -6,9 +6,11 @@ import {
 } from "../../shared/publicCatalog";
 
 export const handlePublicCatalog: RequestHandler = async (req, res) => {
-  const { page, limit } = parseCatalogPagination(req.query);
+  const { page, limit, skipCache } = parseCatalogPagination(req.query);
   try {
-    const { body, cacheHit } = await getOrBuildCatalogJsonBody(page, limit);
+    const { body, cacheHit } = await getOrBuildCatalogJsonBody(page, limit, {
+      skipCache,
+    });
     setCatalogCacheControlHeader((n, v) => {
       res.setHeader(n, v);
     });

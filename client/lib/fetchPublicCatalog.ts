@@ -4,17 +4,21 @@ export function buildCatalogFetchUrl(
   base: string,
   page: number,
   limit: number,
+  opts?: { bypassCache?: boolean },
 ): string {
+  const bypass = opts?.bypassCache === true;
   if (base.startsWith("http://") || base.startsWith("https://")) {
     const u = new URL(base);
     u.searchParams.set("page", String(page));
     u.searchParams.set("limit", String(limit));
+    if (bypass) u.searchParams.set("_fresh", String(Date.now()));
     return u.toString();
   }
   const [path, qs] = base.includes("?") ? base.split("?", 2) : [base, ""];
   const params = new URLSearchParams(qs);
   params.set("page", String(page));
   params.set("limit", String(limit));
+  if (bypass) params.set("_fresh", String(Date.now()));
   return `${path}?${params.toString()}`;
 }
 
@@ -24,7 +28,19 @@ function parseClientCatalogCacheTtlMs(): number {
     const n = Number.parseInt(String(raw), 10);
     if (Number.isFinite(n) && n >= 0) return n;
   }
-  return 120_000;
+  return 60_000;
+}
+
+export function clearPublicCatalogClientCache() {
+  memory.clear();
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith(SS_PREFIX)) sessionStorage.removeItem(key);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 type Cached = { data: PublicCatalogResponse; expiresAt: number };
@@ -82,10 +98,12 @@ export async function fetchPublicCatalogPage(
   limit: number,
   opts?: FetchPublicCatalogOptions,
 ): Promise<PublicCatalogResponse> {
-  const url = buildCatalogFetchUrl(catalogBaseUrl, page, limit);
+  const bypass = opts?.bypassCache === true;
+  const url = buildCatalogFetchUrl(catalogBaseUrl, page, limit, {
+    bypassCache: bypass,
+  });
   const ttlMs = parseClientCatalogCacheTtlMs();
   const now = Date.now();
-  const bypass = opts?.bypassCache === true;
 
   if (!bypass && ttlMs > 0) {
     const memHit = memory.get(url);
@@ -102,7 +120,10 @@ export async function fetchPublicCatalogPage(
   let p = inflight.get(url);
   if (!p) {
     p = (async () => {
-      const res = await fetch(url, { signal: opts?.signal });
+      const res = await fetch(url, {
+        signal: opts?.signal,
+        cache: bypass ? "no-store" : "default",
+      });
       if (!res.ok) {
         throw new Error(`catalog_http_${res.status}`);
       }

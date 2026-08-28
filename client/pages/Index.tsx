@@ -31,7 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { fetchPublicCatalogPage } from "@/lib/fetchPublicCatalog";
+import { clearPublicCatalogClientCache, fetchPublicCatalogPage } from "@/lib/fetchPublicCatalog";
 
 const catalogUrl =
   import.meta.env.VITE_PUBLIC_CATALOG_URL?.trim() || "/api/public/catalog";
@@ -366,14 +366,17 @@ export default function Index() {
     }
   };
 
-  const scheduleRealtimeCatalogRefresh = useCallback(() => {
+  const scheduleRealtimeCatalogRefresh = useCallback((opts?: { bypassCache?: boolean }) => {
     const prev = realtimeCatalogRefreshTimerRef.current;
     if (prev !== null) window.clearTimeout(prev);
     realtimeCatalogRefreshTimerRef.current = window.setTimeout(() => {
       realtimeCatalogRefreshTimerRef.current = null;
       void (async () => {
         try {
-          await loadCatalogPageRef.current(pageRef.current);
+          if (opts?.bypassCache) clearPublicCatalogClientCache();
+          await loadCatalogPageRef.current(pageRef.current, {
+            bypassCache: opts?.bypassCache,
+          });
         } catch {
           /* ignore realtime refresh errors */
         }
@@ -415,6 +418,28 @@ export default function Index() {
   }, [totalCount, page]);
 
   useEffect(() => {
+    const topic =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? `banners-feed-${crypto.randomUUID()}`
+        : `banners-feed-${Date.now()}`;
+
+    const channel = supabase
+      .channel(topic)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "homepage_banners" },
+        () => {
+          scheduleRealtimeCatalogRefresh({ bypassCache: true });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void channel.unsubscribe();
+    };
+  }, [scheduleRealtimeCatalogRefresh]);
+
+  useEffect(() => {
     if (import.meta.env.VITE_ENABLE_VIDEO_REALTIME !== "true") return;
 
     const topic =
@@ -427,13 +452,6 @@ export default function Index() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "videos" },
-        () => {
-          scheduleRealtimeCatalogRefresh();
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "homepage_banners" },
         () => {
           scheduleRealtimeCatalogRefresh();
         },

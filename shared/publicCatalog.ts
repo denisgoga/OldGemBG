@@ -2,7 +2,7 @@ import type { PublicCatalogResponse } from "./api";
 import { getSupabaseServerClient } from "./supabaseServer.js";
 
 export const DEFAULT_CATALOG_PAGE_LIMIT = 9;
-const DEFAULT_CACHE_TTL_MS = 300_000;
+const DEFAULT_CACHE_TTL_MS = 60_000;
 
 /** Public site_settings columns only (excludes head_scripts/body_scripts). */
 const PUBLIC_SITE_SETTINGS_SELECT =
@@ -28,11 +28,24 @@ function pruneCatalogCache() {
   }
 }
 
+function queryFlag(value: string | string[] | undefined): boolean {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw !== undefined && raw !== "" && raw !== "0" && raw !== "false";
+}
+
 /** Works for Express `req.query` and Vercel `req.query`. */
 export function parseCatalogPagination(query: {
   page?: string | string[];
   limit?: string | string[];
-}): { page: number; limit: number; from: number; to: number } {
+  fresh?: string | string[];
+  _fresh?: string | string[];
+}): {
+  page: number;
+  limit: number;
+  from: number;
+  to: number;
+  skipCache: boolean;
+} {
   const pageRaw = Array.isArray(query.page) ? query.page[0] : query.page;
   const limitRaw = Array.isArray(query.limit) ? query.limit[0] : query.limit;
 
@@ -46,7 +59,8 @@ export function parseCatalogPagination(query: {
     ),
   );
   const offset = (page - 1) * limit;
-  return { page, limit, from: offset, to: offset + limit - 1 };
+  const skipCache = queryFlag(query.fresh) || queryFlag(query._fresh);
+  return { page, limit, from: offset, to: offset + limit - 1, skipCache };
 }
 
 export async function fetchPublicCatalogPayload(
@@ -83,6 +97,10 @@ export async function fetchPublicCatalogPayload(
   ]);
 
   if (videosRes.error) throw videosRes.error;
+
+  if (bannersRes.error) {
+    console.error("[public-catalog] homepage_banners:", bannersRes.error);
+  }
 
   const bannersRaw = bannersRes.error ? [] : (bannersRes.data ?? []);
   const banners = bannersRaw.map((row) => ({
@@ -123,18 +141,25 @@ export async function fetchPublicCatalogPayload(
 /**
  * In-memory cache keyed by page+limit. Separate cache per runtime (Express vs each Vercel lambda instance).
  */
+export function invalidateCatalogCache() {
+  cache.clear();
+}
+
 export async function getOrBuildCatalogJsonBody(
   page: number,
   limit: number,
+  opts?: { skipCache?: boolean },
 ): Promise<{ body: string; cacheHit: boolean }> {
   const key = `${page}:${limit}`;
   const now = Date.now();
   const ttl = catalogCacheTtlMs();
 
   pruneCatalogCache();
-  const hit = cache.get(key);
-  if (hit && hit.expiresAt > now) {
-    return { body: hit.body, cacheHit: true };
+  if (!opts?.skipCache) {
+    const hit = cache.get(key);
+    if (hit && hit.expiresAt > now) {
+      return { body: hit.body, cacheHit: true };
+    }
   }
 
   const payload = await fetchPublicCatalogPayload(page, limit);
@@ -144,9 +169,9 @@ export async function getOrBuildCatalogJsonBody(
 }
 
 export function setCatalogCacheControlHeader(setHeader: (n: string, v: string) => void) {
-  const maxAge = process.env.PUBLIC_CATALOG_HTTP_MAX_AGE ?? "60";
-  const sMaxAge = process.env.PUBLIC_CATALOG_HTTP_S_MAXAGE ?? "600";
-  const swr = process.env.PUBLIC_CATALOG_HTTP_STALE_WHILE_REVALIDATE ?? "3600";
+  const maxAge = process.env.PUBLIC_CATALOG_HTTP_MAX_AGE ?? "30";
+  const sMaxAge = process.env.PUBLIC_CATALOG_HTTP_S_MAXAGE ?? "120";
+  const swr = process.env.PUBLIC_CATALOG_HTTP_STALE_WHILE_REVALIDATE ?? "300";
   setHeader(
     "Cache-Control",
     `public, max-age=${maxAge}, s-maxage=${sMaxAge}, stale-while-revalidate=${swr}`,
