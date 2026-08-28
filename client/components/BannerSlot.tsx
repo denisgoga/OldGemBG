@@ -1,6 +1,7 @@
 import type { PublicHomepageBanner } from "@shared/api";
 import {
   bannerGridColumnClass,
+  bannerGridInnerClass,
   deviceVisibilityClass,
   getBannerSlotMeta,
 } from "@shared/bannerSlots";
@@ -35,7 +36,15 @@ export function BannerSlot({ banner, variant, className }: Props) {
       {slotMeta ? (
         <span className="sr-only">{slotMeta.label}</span>
       ) : null}
-      <HomepageBannerAd banner={banner} variant={adVariant(variant)} />
+      <div
+        className={cn(
+          variant === "grid"
+            ? bannerGridInnerClass(banner)
+            : "w-full",
+        )}
+      >
+        <HomepageBannerAd banner={banner} variant={adVariant(variant)} />
+      </div>
     </aside>
   );
 }

@@ -78,15 +78,15 @@ export function deviceVisibilityLabel(v: BannerDeviceVisibility): string {
   }
 }
 
-/** Tailwind visibility — mobile < md, desktop >= md */
+/** Tailwind visibility — mobile < md (768px), desktop >= md. Keep off layout flex/col classes (cn merge conflict). */
 export function deviceVisibilityClass(v: BannerDeviceVisibility): string {
   switch (v) {
     case "mobile":
-      return "md:hidden";
+      return "block md:hidden";
     case "desktop":
       return "hidden md:block";
     default:
-      return "";
+      return "block";
   }
 }
 
@@ -113,7 +113,14 @@ export function bannerGridColumnClass(
   banner: Pick<PublicHomepageBanner, "media_type" | "layout_width">,
 ): string {
   if (!bannerUsesFullWidth(banner)) return "";
-  return "col-span-1 sm:col-span-2 lg:col-span-4 flex w-full justify-center";
+  return "col-span-1 sm:col-span-2 lg:col-span-4 w-full";
+}
+
+export function bannerGridInnerClass(
+  banner: Pick<PublicHomepageBanner, "media_type" | "layout_width">,
+): string {
+  if (!bannerUsesFullWidth(banner)) return "w-full";
+  return "flex w-full justify-center";
 }
 
 export function bannerHasContent(banner: PublicHomepageBanner): boolean {
