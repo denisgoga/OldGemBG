@@ -17,7 +17,9 @@ import {
 } from "@/lib/supabase";
 import { pickAffiliateUrl } from "@/lib/pickAffiliateUrl";
 import type { PublicHomepageBanner } from "@shared/api";
-import { HomepageBannerAd, bannerHasContent } from "@/components/HomepageBannerAd";
+import { BannerSlot } from "@/components/BannerSlot";
+import { buildHomepageBannerLayout } from "@shared/bannerLayout";
+import { mapRowToPublicBanner } from "@shared/bannerSlots";
 import { useLocale } from "@/i18n/LocaleContext";
 import { t } from "@/i18n/dictionary";
 import {
@@ -46,96 +48,9 @@ const REALTIME_CATALOG_DEBOUNCE_MS = 450;
 
 function mapRowsToPublicBanners(rows: unknown[] | null): PublicHomepageBanner[] {
   if (!rows?.length) return [];
-  return rows.map((raw) => {
-    const row = raw as Record<string, unknown>;
-    const linkRaw = typeof row.link_url === "string" ? row.link_url.trim() : "";
-    return {
-      id: String(row.id),
-      media_type:
-        row.media_type === "video" || row.media_type === "html"
-          ? row.media_type
-          : "image",
-      image_url: String(row.image_url ?? ""),
-      video_url:
-        typeof row.video_url === "string" && row.video_url.trim().length > 0
-          ? row.video_url.trim()
-          : null,
-      html_content:
-        typeof row.html_content === "string" &&
-        row.html_content.trim().length > 0
-          ? row.html_content
-          : null,
-      link_url: linkRaw.length > 0 ? linkRaw : null,
-      size:
-        row.size === "300x100"
-          ? "300x100"
-          : row.size === "native"
-            ? "native"
-            : "300x250",
-      alt_text:
-        typeof row.alt_text === "string" && row.alt_text.trim().length > 0
-          ? row.alt_text.trim()
-          : null,
-    };
-  });
-}
-
-/** Fixed banner slots by admin list order: [0]=below intro, [1] after 3rd, [2] after 6th, [3] after 9th. */
-function buildCatalogLayout(
-  videoList: Video[],
-  bannerList: PublicHomepageBanner[],
-): {
-  headerBanner: PublicHomepageBanner | null;
-  gridSlots: Array<
-    | { kind: "video"; video: Video }
-    | { kind: "banner"; banner: PublicHomepageBanner; key: string }
-  >;
-} {
-  const slotBanner = (index: 0 | 1 | 2 | 3): PublicHomepageBanner | null => {
-    const banner = bannerList[index];
-    return banner && bannerHasContent(banner) ? banner : null;
-  };
-
-  const headerBanner = slotBanner(0);
-  const gridBannerByCount: Record<3 | 6 | 9, PublicHomepageBanner | null> = {
-    3: slotBanner(1),
-    6: slotBanner(2),
-    9: slotBanner(3),
-  };
-
-  const gridSlots: Array<
-    | { kind: "video"; video: Video }
-    | { kind: "banner"; banner: PublicHomepageBanner; key: string }
-  > = [];
-  const placedBannerIds = new Set<string>();
-
-  videoList.forEach((video, idx) => {
-    gridSlots.push({ kind: "video", video });
-    const count = (idx + 1) as number;
-    if (count !== 3 && count !== 6 && count !== 9) return;
-    const banner = gridBannerByCount[count as 3 | 6 | 9];
-    if (!banner || placedBannerIds.has(banner.id)) return;
-    placedBannerIds.add(banner.id);
-    gridSlots.push({
-      kind: "banner",
-      banner,
-      key: `banner-slot-after-${count}-${banner.id}`,
-    });
-  });
-
-  // If fewer than 9 videos, still show grid banners after the last video (in slot order).
-  for (const count of [3, 6, 9] as const) {
-    const banner = gridBannerByCount[count];
-    if (!banner || placedBannerIds.has(banner.id)) continue;
-    placedBannerIds.add(banner.id);
-    gridSlots.push({
-      kind: "banner",
-      banner,
-      key: `banner-slot-fallback-${count}-${banner.id}`,
-    });
-  }
-
-  return { headerBanner, gridSlots };
+  return rows.map((raw) =>
+    mapRowToPublicBanner(raw as Record<string, unknown>),
+  );
 }
 
 function withTimeout<T>(promiseLike: PromiseLike<T>, ms: number): Promise<T> {
@@ -340,7 +255,7 @@ export default function Index() {
         supabase
           .from("homepage_banners")
           .select(
-            "id, image_url, link_url, size, alt_text, media_type, video_url, html_content",
+            "id, name, slot, device_visibility, layout_width, image_url, link_url, size, alt_text, media_type, video_url, html_content, sort_order",
           )
           .eq("is_active", true)
           .order("sort_order", { ascending: true, nullsFirst: false })
@@ -547,7 +462,7 @@ export default function Index() {
   }, [siteSettings, locale]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const catalogLayout = buildCatalogLayout(videos, homepageBanners);
+  const catalogLayout = buildHomepageBannerLayout(videos, homepageBanners);
 
   if (loadError) {
     return (
@@ -679,13 +594,16 @@ export default function Index() {
             )}
           </div>
 
-          {catalogLayout.headerBanner ? (
-            <aside aria-label="Advertisement" className="mb-8 w-full">
-              <HomepageBannerAd
-                banner={catalogLayout.headerBanner}
-                variant="header"
-              />
-            </aside>
+          {catalogLayout.introBanners.length > 0 ? (
+            <div className="mb-8 flex w-full flex-col items-start gap-4">
+              {catalogLayout.introBanners.map((banner) => (
+                <BannerSlot
+                  key={banner.id}
+                  banner={banner}
+                  variant="intro"
+                />
+              ))}
+            </div>
           ) : null}
 
           {videos.length > 0 ? (
@@ -714,19 +632,26 @@ export default function Index() {
                       onClick={() => handleThumbnailClick(slot.video)}
                     />
                   ) : (
-                    <aside
+                    <BannerSlot
                       key={slot.key}
-                      aria-label="Advertisement"
-                      className={cn(
-                        slot.banner.media_type === "html" &&
-                          "col-span-1 sm:col-span-2 lg:col-span-4 flex w-full justify-center",
-                      )}
-                    >
-                      <HomepageBannerAd banner={slot.banner} variant="grid" />
-                    </aside>
+                      banner={slot.banner}
+                      variant="grid"
+                    />
                   ),
                 )}
               </div>
+
+              {catalogLayout.belowGridBanners.length > 0 ? (
+                <div className="mt-8 flex w-full flex-col items-center gap-4">
+                  {catalogLayout.belowGridBanners.map((banner) => (
+                    <BannerSlot
+                      key={banner.id}
+                      banner={banner}
+                      variant="footer"
+                    />
+                  ))}
+                </div>
+              ) : null}
 
               {totalCount > PAGE_SIZE && (
                 <nav

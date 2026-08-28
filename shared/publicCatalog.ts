@@ -1,4 +1,5 @@
 import type { PublicCatalogResponse } from "./api";
+import { mapRowToPublicBanner } from "./bannerSlots.js";
 import { getSupabaseServerClient } from "./supabaseServer.js";
 
 export const DEFAULT_CATALOG_PAGE_LIMIT = 9;
@@ -89,7 +90,7 @@ export async function fetchPublicCatalogPayload(
     supabase
       .from("homepage_banners")
       .select(
-        "id, image_url, link_url, size, alt_text, media_type, video_url, html_content",
+        "id, name, slot, device_visibility, layout_width, image_url, link_url, size, alt_text, media_type, video_url, html_content, sort_order",
       )
       .eq("is_active", true)
       .order("sort_order", { ascending: true, nullsFirst: false })
@@ -103,30 +104,9 @@ export async function fetchPublicCatalogPayload(
   }
 
   const bannersRaw = bannersRes.error ? [] : (bannersRes.data ?? []);
-  const banners = bannersRaw.map((row) => ({
-    id: row.id as string,
-    media_type: (row.media_type === "video" || row.media_type === "html"
-      ? row.media_type
-      : "image") as "image" | "video" | "html",
-    image_url: String(row.image_url ?? ""),
-    video_url:
-      typeof row.video_url === "string" && row.video_url.trim().length > 0
-        ? row.video_url.trim()
-        : null,
-    html_content:
-      typeof row.html_content === "string" && row.html_content.trim().length > 0
-        ? row.html_content
-        : null,
-    link_url:
-      typeof row.link_url === "string" && row.link_url.trim().length > 0
-        ? row.link_url.trim()
-        : null,
-    size: row.size as "300x250" | "300x100" | "native",
-    alt_text:
-      typeof row.alt_text === "string" && row.alt_text.trim().length > 0
-        ? row.alt_text.trim()
-        : null,
-  }));
+  const banners = bannersRaw.map((row) =>
+    mapRowToPublicBanner(row as Record<string, unknown>),
+  );
 
   return {
     videos: videosRes.data ?? [],

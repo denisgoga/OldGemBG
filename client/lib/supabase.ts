@@ -89,12 +89,21 @@ export type SiteTranslations = {
 
 export type HomepageBanner = {
   id: string;
+  name: string;
+  slot:
+    | "home_below_intro"
+    | "home_grid_after_3"
+    | "home_grid_after_6"
+    | "home_grid_after_9"
+    | "home_below_grid";
+  device_visibility: "all" | "mobile" | "desktop";
+  layout_width: "auto" | "grid" | "full";
   media_type: "image" | "video" | "html";
   image_url: string;
   video_url: string;
   html_content: string;
   link_url: string;
-  size: "300x250" | "300x100" | "native";
+  size: "300x250" | "300x100" | "728x90" | "native";
   is_active: boolean;
   sort_order: number | null;
   alt_text: string;

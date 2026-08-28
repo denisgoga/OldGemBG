@@ -26,18 +26,31 @@ export type PublicCatalogSiteSettings = {
   updated_at: string;
 };
 
-/** Active homepage grid banners returned from `/api/public/catalog` */
+/** Active homepage banners returned from `/api/public/catalog` */
 export type PublicHomepageBanner = {
   id: string;
+  /** Admin label (not shown on site) */
+  name: string;
+  /** Fixed placement slot on the homepage */
+  slot:
+    | "home_below_intro"
+    | "home_grid_after_3"
+    | "home_grid_after_6"
+    | "home_grid_after_9"
+    | "home_below_grid";
+  /** Device targeting */
+  device_visibility: "all" | "mobile" | "desktop";
+  /** Layout: auto | grid cell | full row */
+  layout_width: "auto" | "grid" | "full";
   media_type: "image" | "video" | "html";
   image_url: string;
   video_url: string | null;
   html_content: string | null;
-  /** Optional outbound click URL */
+  /** Optional outbound click URL (image/video only) */
   link_url: string | null;
-  /** IAB-style slots, or native (matches homepage thumbnail card footprint) */
-  size: "300x250" | "300x100" | "native";
+  size: "300x250" | "300x100" | "728x90" | "native";
   alt_text: string | null;
+  sort_order: number;
 };
 
 export interface PublicCatalogResponse {

@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
 import type { PublicHomepageBanner } from "@shared/api";
+import { bannerHasContent } from "@shared/bannerSlots";
 import { cn } from "@/lib/utils";
 import { CATALOG_THUMBNAIL_FRAME_CLASS } from "@/components/VideoCard";
 import { BannerHtmlContent } from "@/components/BannerHtmlContent";
 
 type Props = {
   banner: PublicHomepageBanner;
-  /** Header slot is wider; grid HTML banners span the full row. */
+  /** Intro/footer slots are wider; grid slots follow layout_width. */
   variant?: "header" | "grid";
 };
 
@@ -14,14 +15,10 @@ const SIZE_CLASS: Record<PublicHomepageBanner["size"], string> = {
   native: "h-64",
   "300x250": "h-64",
   "300x100": "h-32",
+  "728x90": "h-24",
 };
 
-export function bannerHasContent(banner: PublicHomepageBanner): boolean {
-  const mediaType = banner.media_type ?? "image";
-  if (mediaType === "html") return !!banner.html_content?.trim();
-  if (mediaType === "video") return !!banner.video_url?.trim();
-  return !!banner.image_url?.trim();
-}
+export { bannerHasContent };
 
 export function HomepageBannerAd({ banner, variant = "grid" }: Props) {
   const alt = banner.alt_text?.trim() || "Advertisement";
@@ -51,6 +48,7 @@ export function HomepageBannerAd({ banner, variant = "grid" }: Props) {
   const shell = cn(
     CATALOG_THUMBNAIL_FRAME_CLASS,
     heightClass,
+    banner.size === "728x90" && "max-w-[728px] mx-auto",
     "group relative block w-full overflow-hidden transition-all duration-300",
     link
       ? "cursor-pointer hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
