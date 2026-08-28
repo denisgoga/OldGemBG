@@ -24,6 +24,7 @@ import { SUPPORTED_LOCALES, type Locale } from "@/i18n/locales";
 import { getPopupStringsForLocale, getSiteStringsForLocale } from "@/i18n/dbTranslation";
 import { HomepageBannerAd } from "@/components/HomepageBannerAd";
 import type { PublicHomepageBanner } from "@shared/api";
+import { cn } from "@/lib/utils";
 
 export default function Admin() {
   const [videos, setVideos] = useState<Video[]>([]);
@@ -1507,9 +1508,18 @@ export default function Admin() {
                       </div>
                     ) : null}
 
-                    <div className="max-w-sm">
+                    <div
+                      className={cn(
+                        bannerForm.media_type === "html" ? "max-w-3xl" : "max-w-sm",
+                      )}
+                    >
                       <p className="text-xs text-muted-foreground mb-2">Live preview</p>
-                      <HomepageBannerAd banner={buildBannerPreview()} />
+                      <HomepageBannerAd
+                        banner={buildBannerPreview()}
+                        variant={
+                          bannerForm.media_type === "html" ? "header" : "grid"
+                        }
+                      />
                     </div>
 
                     <div>

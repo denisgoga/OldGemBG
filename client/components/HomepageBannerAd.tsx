@@ -4,7 +4,11 @@ import { cn } from "@/lib/utils";
 import { CATALOG_THUMBNAIL_FRAME_CLASS } from "@/components/VideoCard";
 import { BannerHtmlContent } from "@/components/BannerHtmlContent";
 
-type Props = { banner: PublicHomepageBanner };
+type Props = {
+  banner: PublicHomepageBanner;
+  /** Header slot is wider; grid HTML banners span the full row. */
+  variant?: "header" | "grid";
+};
 
 const SIZE_CLASS: Record<PublicHomepageBanner["size"], string> = {
   native: "h-64",
@@ -19,12 +23,30 @@ export function bannerHasContent(banner: PublicHomepageBanner): boolean {
   return !!banner.image_url?.trim();
 }
 
-export function HomepageBannerAd({ banner }: Props) {
+export function HomepageBannerAd({ banner, variant = "grid" }: Props) {
   const alt = banner.alt_text?.trim() || "Advertisement";
   const link = banner.link_url?.trim();
   const outbound = link ? /^https?:\/\//i.test(link) : false;
   const heightClass = SIZE_CLASS[banner.size] ?? SIZE_CLASS.native;
   const mediaType = banner.media_type ?? "image";
+  const isHtml = mediaType === "html";
+
+  if (isHtml) {
+    return (
+      <div
+        className={cn(
+          "relative w-full",
+          variant === "header" ? "max-w-4xl" : "mx-auto max-w-[970px]",
+        )}
+        aria-label={alt}
+      >
+        <BannerHtmlContent
+          html={banner.html_content ?? ""}
+          slotId={`banner-${banner.id}`}
+        />
+      </div>
+    );
+  }
 
   const shell = cn(
     CATALOG_THUMBNAIL_FRAME_CLASS,
@@ -43,15 +65,7 @@ export function HomepageBannerAd({ banner }: Props) {
 
   let body: ReactNode;
 
-  if (mediaType === "html") {
-    body = (
-      <BannerHtmlContent
-        html={banner.html_content ?? ""}
-        slotId={`banner-${banner.id}`}
-        className="h-full w-full overflow-hidden bg-card"
-      />
-    );
-  } else if (mediaType === "video") {
+  if (mediaType === "video") {
     body = (
       <video
         src={banner.video_url ?? ""}

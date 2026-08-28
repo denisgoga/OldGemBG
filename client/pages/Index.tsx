@@ -680,8 +680,11 @@ export default function Index() {
           </div>
 
           {catalogLayout.headerBanner ? (
-            <aside aria-label="Advertisement" className="mb-8 max-w-4xl">
-              <HomepageBannerAd banner={catalogLayout.headerBanner} />
+            <aside aria-label="Advertisement" className="mb-8 w-full">
+              <HomepageBannerAd
+                banner={catalogLayout.headerBanner}
+                variant="header"
+              />
             </aside>
           ) : null}
 
@@ -711,8 +714,15 @@ export default function Index() {
                       onClick={() => handleThumbnailClick(slot.video)}
                     />
                   ) : (
-                    <aside key={slot.key} aria-label="Advertisement">
-                      <HomepageBannerAd banner={slot.banner} />
+                    <aside
+                      key={slot.key}
+                      aria-label="Advertisement"
+                      className={cn(
+                        slot.banner.media_type === "html" &&
+                          "col-span-1 sm:col-span-2 lg:col-span-4 flex w-full justify-center",
+                      )}
+                    >
+                      <HomepageBannerAd banner={slot.banner} variant="grid" />
                     </aside>
                   ),
                 )}
