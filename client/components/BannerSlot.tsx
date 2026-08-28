@@ -2,10 +2,10 @@ import type { PublicHomepageBanner } from "@shared/api";
 import {
   bannerGridColumnClass,
   bannerGridInnerClass,
-  deviceVisibilityClass,
   getBannerSlotMeta,
 } from "@shared/bannerSlots";
 import { cn } from "@/lib/utils";
+import { useBannerDeviceVisible } from "@/lib/bannerDeviceVisibility";
 import { HomepageBannerAd } from "@/components/HomepageBannerAd";
 
 type Props = {
@@ -19,7 +19,10 @@ function adVariant(variant: Props["variant"]): "header" | "grid" {
 }
 
 export function BannerSlot({ banner, variant, className }: Props) {
+  const visible = useBannerDeviceVisible(banner.device_visibility ?? "all");
   const slotMeta = getBannerSlotMeta(banner.slot);
+
+  if (!visible) return null;
 
   return (
     <aside
@@ -27,7 +30,7 @@ export function BannerSlot({ banner, variant, className }: Props) {
       data-banner-slot={banner.slot}
       data-banner-device={banner.device_visibility}
       className={cn(
-        deviceVisibilityClass(banner.device_visibility),
+        "banner-slot",
         variant === "grid" && bannerGridColumnClass(banner),
         variant !== "grid" && "w-full",
         className,

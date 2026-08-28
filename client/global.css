@@ -123,6 +123,19 @@
   }
 }
 
+/* Banner device fallback (primary gate is JS matchMedia in BannerSlot). */
+@media (min-width: 768px) {
+  .banner-slot[data-banner-device="mobile"] {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .banner-slot[data-banner-device="desktop"] {
+    display: none !important;
+  }
+}
+
 /* Circular progress ring around play button — animation duration driven by VideoCard warmup constant */
 @keyframes thumbnail-warmup-ring-fill {
   from {

@@ -140,7 +140,8 @@ function legacySlotFromSortOrder(sortOrder: unknown): HomepageBannerSlotId {
 }
 
 function parseDeviceVisibility(raw: unknown): BannerDeviceVisibility {
-  if (raw === "mobile" || raw === "desktop") return raw;
+  const value = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  if (value === "mobile" || value === "desktop") return value;
   return "all";
 }
 
