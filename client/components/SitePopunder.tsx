@@ -10,14 +10,20 @@ import {
   teardownManagedScripts,
 } from "@/lib/siteManagedScriptsBoot";
 
+import { isLegalPath } from "@/lib/legalPaths";
+
 function isAdminPath(pathname: string) {
   return /\/admin(-login)?(\/|$)/.test(pathname);
+}
+
+function shouldSkipSiteScripts(pathname: string) {
+  return isAdminPath(pathname) || isLegalPath(pathname);
 }
 
 /** Preloads popunder URL + managed head/body scripts before the age gate. */
 export function SitePopunder() {
   useEffect(() => {
-    if (isAdminPath(window.location.pathname)) {
+    if (shouldSkipSiteScripts(window.location.pathname)) {
       return;
     }
 
@@ -49,7 +55,7 @@ export function SitePopunder() {
 
   useEffect(() => {
     const onNavigate = () => {
-      if (isAdminPath(window.location.pathname)) {
+      if (shouldSkipSiteScripts(window.location.pathname)) {
         teardownManagedScripts();
       }
     };

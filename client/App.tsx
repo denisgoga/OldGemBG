@@ -6,10 +6,13 @@ import { createRoot } from "react-dom/client";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
 import AdminLogin from "./pages/AdminLogin";
+import Dmca from "./pages/Dmca";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AgeGate } from "./components/AgeGate";
 import NotFound from "./pages/NotFound";
@@ -18,6 +21,7 @@ import { SUPPORTED_LOCALES, type Locale } from "@/i18n/locales";
 import { SitePopunder } from "@/components/SitePopunder";
 import { loadSitePopunderSettings } from "@/lib/sitePopunder";
 import { preloadManagedScripts } from "@/lib/siteManagedScriptsBoot";
+import { isLegalPath } from "@/lib/legalPaths";
 
 const queryClient = new QueryClient();
 
@@ -53,14 +57,44 @@ function redirectToLocalePrefixedPath() {
   window.location.replace(nextUrl);
 }
 
-const App = () => {
+function AppRoutes() {
+  const location = useLocation();
+  const skipAgeGate = isLegalPath(location.pathname);
   const [ageVerified, setAgeVerified] = useState(false);
+  const canShowRoutes = ageVerified || skipAgeGate;
+
+  return (
+    <>
+      {!skipAgeGate ? <AgeGate onVerified={setAgeVerified} /> : null}
+      {canShowRoutes ? (
+        <Routes>
+          <Route path="/:locale/dmca" element={<Dmca />} />
+          <Route path="/:locale/terms" element={<Terms />} />
+          <Route path="/:locale/privacy" element={<Privacy />} />
+          <Route path="/:locale" element={<Index />} />
+          <Route path="/:locale/" element={<Index />} />
+          <Route path="/:locale/admin-login" element={<AdminLogin />} />
+          <Route
+            path="/:locale/admin"
+            element={
+              <ProtectedRoute>
+                <Admin />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      ) : null}
+    </>
+  );
+}
+
+const App = () => {
   const [locale] = useState<Locale>(() => {
     return getLocaleFromPathname(window.location.pathname) ?? detectLocaleFromNavigator();
   });
 
   useEffect(() => {
-    // Ensure URL has locale prefix (/:locale/...) for SEO + correct routing.
     redirectToLocalePrefixedPath();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -72,29 +106,9 @@ const App = () => {
           <Toaster />
           <Sonner />
           <SitePopunder />
-          <AgeGate onVerified={setAgeVerified} />
-          {ageVerified && (
-            <BrowserRouter>
-              <Routes>
-                <Route path="/:locale" element={<Index />} />
-                <Route path="/:locale/" element={<Index />} />
-                <Route
-                  path="/:locale/admin-login"
-                  element={<AdminLogin />}
-                />
-                <Route
-                  path="/:locale/admin"
-                  element={
-                    <ProtectedRoute>
-                      <Admin />
-                    </ProtectedRoute>
-                  }
-                />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          )}
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
     </LocaleProvider>

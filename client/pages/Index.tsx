@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AccessModal } from "@/components/AccessModal";
 import {
@@ -26,14 +27,9 @@ import {
   getPopupStringsForLocale,
   getSiteStringsForLocale,
 } from "@/i18n/dbTranslation";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { clearPublicCatalogClientCache, fetchPublicCatalogPage } from "@/lib/fetchPublicCatalog";
+import { getContactEmail } from "@/lib/legal-config";
+import { legalPath } from "@/lib/legalPaths";
 
 const catalogUrl =
   import.meta.env.VITE_PUBLIC_CATALOG_URL?.trim() || "/api/public/catalog";
@@ -93,10 +89,8 @@ export default function Index() {
   const thumbnailWarmupTimerRef = useRef<number | null>(null);
   const popupSettingsRef = useRef(popupSettings);
   popupSettingsRef.current = popupSettings;
-  const [activeFooterDialog, setActiveFooterDialog] = useState<
-    "terms" | "privacy" | "contact" | null
-  >(null);
   const locale = useLocale();
+  const contactEmail = getContactEmail();
 
   const pageRef = useRef(page);
   pageRef.current = page;
@@ -531,26 +525,6 @@ export default function Index() {
   const hideHeadline = siteStrings.hide_landing_headline;
   const hideSubhead = siteStrings.hide_landing_subhead;
   const hideSeoIntro = siteStrings.hide_seo_intro;
-  const footerDialogContent = {
-    terms: {
-      title: "Terms of Service",
-      description:
-        "This website contains adult-oriented content and is strictly for users 18+ (or legal age in your jurisdiction). By accessing OldGem.Net, you confirm legal eligibility, agree not to share access with minors, and accept that content availability may change without notice.",
-    },
-    privacy: {
-      title: "Privacy Policy",
-      description:
-        "OldGem.Net is an adult website. We process limited technical data required for service delivery, fraud prevention, and security. We do not knowingly collect data from minors, and access is intended only for adults of legal age.",
-    },
-    contact: {
-      title: "Contact",
-      description: "Email us at info@oldgem.net for support, legal, or policy inquiries.",
-    },
-  } as const;
-  const currentFooterDialog = activeFooterDialog
-    ? footerDialogContent[activeFooterDialog]
-    : null;
-
   const popupStrings = getPopupStringsForLocale(popupSettings, locale);
   const directLinkHint =
     popupStrings.direct_link_hint?.trim() ||
@@ -708,28 +682,31 @@ export default function Index() {
         {/* Footer */}
         <footer className="border-t border-border bg-secondary/50 mt-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex items-center justify-center gap-6 pb-4 text-primary">
-              <button
-                type="button"
+            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 pb-4 text-primary">
+              <Link
+                to={legalPath(locale, "terms")}
                 className="text-sm font-medium transition-opacity hover:opacity-80"
-                onClick={() => setActiveFooterDialog("terms")}
               >
                 Terms of Service
-              </button>
-              <button
-                type="button"
+              </Link>
+              <Link
+                to={legalPath(locale, "privacy")}
                 className="text-sm font-medium transition-opacity hover:opacity-80"
-                onClick={() => setActiveFooterDialog("privacy")}
               >
                 Privacy Policy
-              </button>
-              <button
-                type="button"
+              </Link>
+              <Link
+                to={legalPath(locale, "dmca")}
                 className="text-sm font-medium transition-opacity hover:opacity-80"
-                onClick={() => setActiveFooterDialog("contact")}
+              >
+                DMCA
+              </Link>
+              <a
+                href={`mailto:${contactEmail}`}
+                className="text-sm font-medium transition-opacity hover:opacity-80"
               >
                 Contact
-              </button>
+              </a>
             </div>
             <p className="text-sm text-muted-foreground text-center">
               {t(locale, "index.footerCopyright", {
@@ -744,33 +721,6 @@ export default function Index() {
           </div>
         </footer>
       </div>
-
-      <Dialog
-        open={activeFooterDialog !== null}
-        onOpenChange={(open) => !open && setActiveFooterDialog(null)}
-      >
-        <DialogContent className="border-border bg-card text-white">
-          <DialogHeader>
-            <DialogTitle>{currentFooterDialog?.title}</DialogTitle>
-            <DialogDescription className="text-gray-300">
-              {activeFooterDialog === "contact" ? (
-                <>
-                  Email us at{" "}
-                  <a
-                    href="mailto:info@oldgem.net"
-                    className="text-primary underline underline-offset-4 hover:opacity-80"
-                  >
-                    info@oldgem.net
-                  </a>
-                  {" "}for support, legal, or policy inquiries.
-                </>
-              ) : (
-                currentFooterDialog?.description
-              )}
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
