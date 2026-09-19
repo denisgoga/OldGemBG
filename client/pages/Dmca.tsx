@@ -25,7 +25,7 @@ export default function Dmca() {
     <LegalPage
       title="DMCA Policy"
       description={`${SITE} respects intellectual property rights and responds to valid notices under the Digital Millennium Copyright Act (DMCA).`}
-      lastUpdated="September 2, 2026"
+      lastUpdated="September 19, 2026"
       sections={[
         {
           title: "1. Reporting Copyright Infringement",

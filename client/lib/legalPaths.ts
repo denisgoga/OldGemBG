@@ -1,5 +1,5 @@
 /** Legal page path segments (after /:locale/). No age gate — required for DMCA / compliance crawlers. */
-export const LEGAL_PAGE_SEGMENTS = ["dmca", "terms", "privacy"] as const;
+export const LEGAL_PAGE_SEGMENTS = ["dmca", "terms", "privacy", "2257"] as const;
 
 export type LegalPageSegment = (typeof LEGAL_PAGE_SEGMENTS)[number];
 

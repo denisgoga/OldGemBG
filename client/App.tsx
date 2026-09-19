@@ -13,6 +13,7 @@ import AdminLogin from "./pages/AdminLogin";
 import Dmca from "./pages/Dmca";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import Compliance2257 from "./pages/Compliance2257";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AgeGate } from "./components/AgeGate";
 import NotFound from "./pages/NotFound";
@@ -71,6 +72,7 @@ function AppRoutes() {
           <Route path="/:locale/dmca" element={<Dmca />} />
           <Route path="/:locale/terms" element={<Terms />} />
           <Route path="/:locale/privacy" element={<Privacy />} />
+          <Route path="/:locale/2257" element={<Compliance2257 />} />
           <Route path="/:locale" element={<Index />} />
           <Route path="/:locale/" element={<Index />} />
           <Route path="/:locale/admin-login" element={<AdminLogin />} />

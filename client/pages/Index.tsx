@@ -701,6 +701,12 @@ export default function Index() {
               >
                 DMCA
               </Link>
+              <Link
+                to={legalPath(locale, "2257")}
+                className="text-sm font-medium transition-opacity hover:opacity-80"
+              >
+                2257
+              </Link>
               <a
                 href={`mailto:${contactEmail}`}
                 className="text-sm font-medium transition-opacity hover:opacity-80"
@@ -712,6 +718,15 @@ export default function Index() {
               {t(locale, "index.footerCopyright", {
                 year: new Date().getFullYear(),
               })}
+            </p>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              {t(locale, "index.footerModels18Plus")}{" "}
+              <Link
+                to={legalPath(locale, "2257")}
+                className="text-primary hover:opacity-80"
+              >
+                18 U.S.C. § 2257
+              </Link>
             </p>
             {footerText && (
               <p className="text-xs text-muted-foreground text-center mt-2">

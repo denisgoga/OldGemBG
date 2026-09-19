@@ -32,15 +32,26 @@ export default function Terms() {
           ),
         },
         {
-          title: "2. Age Requirement",
+          title: "2. Age Requirement & § 2257",
           content: (
-            <p>
-              This Site contains adult-oriented content intended exclusively for
-              individuals who are at least <strong>18 years of age</strong> (or
-              the age of majority in your jurisdiction, whichever is higher). By
-              entering the Site, you represent and warrant that you meet this age
-              requirement.
-            </p>
+            <>
+              <p>
+                This Site contains adult-oriented content intended exclusively for
+                individuals who are at least <strong>18 years of age</strong> (or
+                the age of majority in your jurisdiction, whichever is higher). By
+                entering the Site, you represent and warrant that you meet this age
+                requirement.
+              </p>
+              <p>
+                All persons depicted in visual content indexed or linked on this
+                Site were at least 18 years old at the time the content was
+                produced. See our{" "}
+                <Link to={legalPath(locale, "2257")}>
+                  18 U.S.C. § 2257 Compliance Statement
+                </Link>{" "}
+                for full details.
+              </p>
+            </>
           ),
         },
         {

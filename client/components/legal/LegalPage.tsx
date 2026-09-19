@@ -87,6 +87,10 @@ export function LegalPage({
           <Link to={legalPath(locale, "privacy")} className="hover:text-primary">
             Privacy
           </Link>
+          <span aria-hidden>·</span>
+          <Link to={legalPath(locale, "2257")} className="hover:text-primary">
+            2257
+          </Link>
         </div>
       </footer>
     </div>

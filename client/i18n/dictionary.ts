@@ -24,6 +24,7 @@ const DICT: Record<Locale, Dict> = {
     "index.footerAdultsOnly":
       "Adults only. 18+. By entering you confirm you are of legal age.",
     "index.footerCopyright": "© {{year}} OldGem.Net. All rights reserved.",
+    "index.footerModels18Plus": "All models are 18 years of age or older.",
     "accessModal.continueBrowsing": "Continue Browsing",
     "accessModal.unlockPrefix": "Unlock",
     "ageGate.accessRestrictedTitle": "Access Restricted",
@@ -61,6 +62,8 @@ const DICT: Record<Locale, Dict> = {
     "index.footerAdultsOnly":
       "Nur für Erwachsene. 18+. Mit der Anmeldung bestätigst du, dass du das gesetzliche Mindestalter erreicht hast.",
     "index.footerCopyright": "© {{year}} OldGem.Net. Alle Rechte vorbehalten.",
+    "index.footerModels18Plus":
+      "Alle Models sind mindestens 18 Jahre alt.",
     "accessModal.continueBrowsing": "Weiter stöbern",
     "accessModal.unlockPrefix": "Freischalten",
     "ageGate.accessRestrictedTitle": "Zugang eingeschränkt",
@@ -98,6 +101,8 @@ const DICT: Record<Locale, Dict> = {
     "index.footerAdultsOnly":
       "Solo per adulti. 18+. Inserendo confermi di avere l'età legale.",
     "index.footerCopyright": "© {{year}} OldGem.Net. Tutti i diritti riservati.",
+    "index.footerModels18Plus":
+      "Tutti i modelli hanno almeno 18 anni.",
     "accessModal.continueBrowsing": "Continua a navigare",
     "accessModal.unlockPrefix": "Sblocca",
     "ageGate.accessRestrictedTitle": "Accesso limitato",
@@ -135,6 +140,8 @@ const DICT: Record<Locale, Dict> = {
     "index.footerAdultsOnly":
       "Solo para adultos. 18+. Al ingresar confirmas que tienes la edad legal.",
     "index.footerCopyright": "© {{year}} OldGem.Net. Todos los derechos reservados.",
+    "index.footerModels18Plus":
+      "Todos los modelos tienen 18 años o más.",
     "accessModal.continueBrowsing": "Continuar navegando",
     "accessModal.unlockPrefix": "Desbloquear",
     "ageGate.accessRestrictedTitle": "Acceso restringido",
@@ -172,6 +179,8 @@ const DICT: Record<Locale, Dict> = {
     "index.footerAdultsOnly":
       "Réservé aux adultes. 18+. En entrant, vous confirmez que vous avez l'âge légal.",
     "index.footerCopyright": "© {{year}} OldGem.Net. Tous droits réservés.",
+    "index.footerModels18Plus":
+      "Tous les modèles ont 18 ans ou plus.",
     "accessModal.continueBrowsing": "Continuer la navigation",
     "accessModal.unlockPrefix": "Déverrouiller",
     "ageGate.accessRestrictedTitle": "Accès restreint",
