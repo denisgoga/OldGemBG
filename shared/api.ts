@@ -21,7 +21,31 @@ export type PublicCatalogSiteSettings = {
   landing_subhead: string | null;
   seo_intro: string | null;
   footer_text: string | null;
+  head_scripts?: string | null;
+  body_scripts?: string | null;
+  popunder_enabled?: boolean | null;
+  popunder_url?: string | null;
   site_translations: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Popup / affiliate settings for the public homepage. */
+export type PublicCatalogPopupSettings = {
+  id: string;
+  title: string;
+  description: string;
+  button_text: string;
+  waiting_title: string | null;
+  waiting_description: string | null;
+  waiting_button_text: string | null;
+  hide_popup?: boolean | null;
+  direct_link_hint?: string | null;
+  affiliate_link: string;
+  affiliate_link_a?: string | null;
+  affiliate_link_b?: string | null;
+  affiliate_split_a?: number | null;
+  popup_translations: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 };
@@ -56,6 +80,8 @@ export type PublicHomepageBanner = {
 export interface PublicCatalogResponse {
   videos: PublicCatalogVideo[];
   siteSettings: PublicCatalogSiteSettings | null;
+  /** Popup / affiliate settings (optional for older caches). */
+  popupSettings?: PublicCatalogPopupSettings | null;
   /** Active banners in display order */
   banners: PublicHomepageBanner[];
   /** 1-based page index */

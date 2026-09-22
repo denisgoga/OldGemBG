@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AccessModal } from "@/components/AccessModal";
@@ -27,9 +27,13 @@ import {
   getPopupStringsForLocale,
   getSiteStringsForLocale,
 } from "@/i18n/dbTranslation";
-import { clearPublicCatalogClientCache, fetchPublicCatalogPage } from "@/lib/fetchPublicCatalog";
+import { fetchPublicCatalogPage } from "@/lib/fetchPublicCatalog";
 import { getContactEmail } from "@/lib/legal-config";
 import { legalPath } from "@/lib/legalPaths";
+import { optimizedStorageImageUrl } from "@shared/optimizedStorageUrl";
+import { applyPopunderSettingsFromRow } from "@/lib/sitePopunder";
+import { refreshManagedScriptsFromRow } from "@/lib/siteManagedScriptsBoot";
+import { applyDocumentSeo } from "@/lib/seo";
 
 const catalogUrl =
   import.meta.env.VITE_PUBLIC_CATALOG_URL?.trim() || "/api/public/catalog";
@@ -38,9 +42,6 @@ const catalogUrl =
 const PAGE_SIZE = 9;
 
 const VIDEO_QUERY_TIMEOUT_MS = 25_000;
-
-/** Debounce burst Postgres realtime events into a single catalog refetch. */
-const REALTIME_CATALOG_DEBOUNCE_MS = 450;
 
 function mapRowsToPublicBanners(rows: unknown[] | null): PublicHomepageBanner[] {
   if (!rows?.length) return [];
@@ -92,11 +93,6 @@ export default function Index() {
   const locale = useLocale();
   const contactEmail = getContactEmail();
 
-  const pageRef = useRef(page);
-  pageRef.current = page;
-
-  const realtimeCatalogRefreshTimerRef = useRef<number | null>(null);
-
   const clearThumbnailWarmupState = () => {
     const id = thumbnailWarmupTimerRef.current;
     if (id !== null) {
@@ -143,37 +139,9 @@ export default function Index() {
   };
 
   useEffect(() => {
-    const fetchPopupSettings = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("popup_settings")
-          .select("*")
-          .limit(1)
-          .single();
-        if (error) throw error;
-        setPopupSettings(data);
-      } catch (error) {
-        console.error("Error fetching popup settings:", error);
-      }
-    };
-
-    void fetchPopupSettings();
-
-    const channel = supabase
-      .channel("index-popup-updates")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "popup_settings" },
-        (payload) => {
-          setPopupSettings(payload.new as PopupSettings);
-        },
-      )
-      .subscribe();
-
     return () => {
       const id = thumbnailWarmupTimerRef.current;
       if (id !== null) window.clearTimeout(id);
-      void channel.unsubscribe();
     };
   }, []);
 
@@ -195,21 +163,16 @@ export default function Index() {
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [warmingVideoId]);
 
-  const loadCatalogPageRef = useRef<
-    (pageNum: number, opts?: { bypassCache?: boolean }) => Promise<void>
-  >(async () => {});
+  const loadCatalogPageRef = useRef<(pageNum: number) => Promise<void>>(
+    async () => {},
+  );
 
-  loadCatalogPageRef.current = async (
-    pageNum: number,
-    opts?: { bypassCache?: boolean },
-  ) => {
+  loadCatalogPageRef.current = async (pageNum: number) => {
     let loadedFromApi = false;
     if (import.meta.env.VITE_DISABLE_CATALOG_API !== "true") {
       try {
         const catalog = await withTimeout(
-          fetchPublicCatalogPage(catalogUrl, pageNum, PAGE_SIZE, {
-            bypassCache: opts?.bypassCache,
-          }),
+          fetchPublicCatalogPage(catalogUrl, pageNum, PAGE_SIZE),
           VIDEO_QUERY_TIMEOUT_MS,
         );
         setVideos(catalog.videos as Video[]);
@@ -218,6 +181,13 @@ export default function Index() {
           (catalog.siteSettings as SiteSettings | null) ?? null,
         );
         setHomepageBanners(Array.isArray(catalog.banners) ? catalog.banners : []);
+        if (catalog.popupSettings) {
+          setPopupSettings(catalog.popupSettings as PopupSettings);
+        }
+        if (catalog.siteSettings) {
+          applyPopunderSettingsFromRow(catalog.siteSettings);
+          void refreshManagedScriptsFromRow(catalog.siteSettings);
+        }
         loadedFromApi = true;
       } catch {
         // Supabase fallback
@@ -227,7 +197,7 @@ export default function Index() {
     if (!loadedFromApi) {
       const from = (pageNum - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      const [vRes, sRes, bRes] = await Promise.all([
+      const [vRes, sRes, bRes, pRes] = await Promise.all([
         withTimeout(
           supabase
             .from("videos")
@@ -254,6 +224,7 @@ export default function Index() {
           .eq("is_active", true)
           .order("sort_order", { ascending: true, nullsFirst: false })
           .order("created_at", { ascending: true }),
+        supabase.from("popup_settings").select("*").limit(1).maybeSingle(),
       ]);
 
       if (vRes.error) {
@@ -264,34 +235,31 @@ export default function Index() {
         throw vRes.error;
       }
 
-      setVideos(vRes.data || []);
+      setVideos(
+        (vRes.data || []).map((video) => ({
+          ...video,
+          thumbnail: optimizedStorageImageUrl(video.thumbnail, { width: 640 }),
+        })),
+      );
       setTotalCount(vRes.count ?? 0);
       setSiteSettings(
         sRes.error ? null : (sRes.data as SiteSettings | null),
       );
       setHomepageBanners(
-        bRes.error ? [] : mapRowsToPublicBanners(bRes.data ?? []),
+        bRes.error
+          ? []
+          : mapRowsToPublicBanners(bRes.data ?? []).map((banner) => ({
+              ...banner,
+              image_url: optimizedStorageImageUrl(banner.image_url, {
+                width: 960,
+              }),
+            })),
       );
+      if (!pRes.error && pRes.data) {
+        setPopupSettings(pRes.data as PopupSettings);
+      }
     }
   };
-
-  const scheduleRealtimeCatalogRefresh = useCallback((opts?: { bypassCache?: boolean }) => {
-    const prev = realtimeCatalogRefreshTimerRef.current;
-    if (prev !== null) window.clearTimeout(prev);
-    realtimeCatalogRefreshTimerRef.current = window.setTimeout(() => {
-      realtimeCatalogRefreshTimerRef.current = null;
-      void (async () => {
-        try {
-          if (opts?.bypassCache) clearPublicCatalogClientCache();
-          await loadCatalogPageRef.current(pageRef.current, {
-            bypassCache: opts?.bypassCache,
-          });
-        } catch {
-          /* ignore realtime refresh errors */
-        }
-      })();
-    }, REALTIME_CATALOG_DEBOUNCE_MS);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -326,133 +294,19 @@ export default function Index() {
     if (page > totalPages) setPage(totalPages);
   }, [totalCount, page]);
 
-  useEffect(() => {
-    const topic =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? `banners-feed-${crypto.randomUUID()}`
-        : `banners-feed-${Date.now()}`;
-
-    const channel = supabase
-      .channel(topic)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "homepage_banners" },
-        () => {
-          scheduleRealtimeCatalogRefresh({ bypassCache: true });
-        },
-      )
-      .subscribe();
-
-    return () => {
-      void channel.unsubscribe();
-    };
-  }, [scheduleRealtimeCatalogRefresh]);
-
-  useEffect(() => {
-    if (import.meta.env.VITE_ENABLE_VIDEO_REALTIME !== "true") return;
-
-    const topic =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? `videos-feed-${crypto.randomUUID()}`
-        : `videos-feed-${Date.now()}`;
-
-    const channel = supabase
-      .channel(topic)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "videos" },
-        () => {
-          scheduleRealtimeCatalogRefresh();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      void channel.unsubscribe();
-      const id = realtimeCatalogRefreshTimerRef.current;
-      if (id !== null) window.clearTimeout(id);
-      realtimeCatalogRefreshTimerRef.current = null;
-    };
-  }, [scheduleRealtimeCatalogRefresh]);
-
   // Apply SEO meta from site_settings (title, description, OG, Twitter – for crawlers that run JS)
   useEffect(() => {
-    if (!siteSettings) return;
-
-    // Keep language indicators in sync with selected locale.
-    document.documentElement.lang = locale;
-    const ogLocale =
-      locale === "en"
-        ? "en_US"
-        : locale === "de"
-          ? "de_DE"
-          : locale === "it"
-            ? "it_IT"
-            : locale === "es"
-              ? "es_ES"
-              : "fr_FR";
-
-    const ogLocaleMeta = document.querySelector(
-      'meta[property="og:locale"]',
-    ) as HTMLMetaElement | null;
-    if (ogLocaleMeta) ogLocaleMeta.content = ogLocale;
-
-    // Keep canonical/URL indicators in sync with the locale-prefixed path.
-    const currentUrl = `${window.location.origin}${window.location.pathname}${window.location.search}`;
-    const canonicalLink = document.querySelector(
-      'link[rel="canonical"]',
-    ) as HTMLLinkElement | null;
-    if (canonicalLink) canonicalLink.href = currentUrl;
-
-    const ogUrlMeta = document.querySelector(
-      'meta[property="og:url"]',
-    ) as HTMLMetaElement | null;
-    if (ogUrlMeta) ogUrlMeta.content = currentUrl;
-
-    const twitterUrlMeta = document.querySelector(
-      'meta[name="twitter:url"]',
-    ) as HTMLMetaElement | null;
-    if (twitterUrlMeta) twitterUrlMeta.content = currentUrl;
-
-    // Best-effort: update JSON-LD language for crawlers.
-    const jsonLdScript = document.querySelector(
-      'script[type="application/ld+json"]',
-    );
-    if (jsonLdScript && jsonLdScript.textContent) {
-      try {
-        const json = JSON.parse(jsonLdScript.textContent);
-        if (typeof json === "object" && json !== null) {
-          json.inLanguage = locale;
-          json.url = currentUrl;
-          jsonLdScript.textContent = JSON.stringify(json);
-        }
-      } catch {
-        // ignore JSON parse errors
-      }
-    }
-
     const { meta_title, meta_description } = getSiteStringsForLocale(
       siteSettings,
       locale,
     );
-    const setMeta = (selector: string, attr: string, value: string) => {
-      const el = document.querySelector(selector);
-      if (el && value) el.setAttribute(attr, value);
-    };
-    if (meta_title) {
-      document.title = meta_title;
-      setMeta('meta[property="og:title"]', "content", meta_title);
-      setMeta('meta[name="twitter:title"]', "content", meta_title);
-    }
-    if (meta_description) {
-      setMeta('meta[name="description"]', "content", meta_description);
-      setMeta('meta[property="og:description"]', "content", meta_description);
-      setMeta('meta[name="twitter:description"]', "content", meta_description);
-    }
-    if (siteSettings.og_image) {
-      setMeta('meta[property="og:image"]', "content", siteSettings.og_image);
-      setMeta('meta[name="twitter:image"]', "content", siteSettings.og_image);
-    }
+    applyDocumentSeo({
+      title: meta_title,
+      description: meta_description,
+      locale,
+      image: siteSettings?.og_image,
+      pathname: `/${locale}/`,
+    });
   }, [siteSettings, locale]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -497,13 +351,10 @@ export default function Index() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {Array.from({ length: 9 }).map((_, i) => (
-              <div key={i} className="rounded-lg border border-border overflow-hidden bg-card">
-                <Skeleton className="aspect-video w-full rounded-none" />
-                <div className="p-4 space-y-2">
-                  <Skeleton className="h-4 w-4/5" />
-                  <Skeleton className="h-3 w-1/3" />
-                </div>
-              </div>
+              <Skeleton
+                key={i}
+                className="h-64 w-full rounded-lg border border-border"
+              />
             ))}
           </div>
         </main>
@@ -540,6 +391,7 @@ export default function Index() {
           setSelectedItem(null);
         }}
         selectedItem={selectedItem}
+        popupSettings={popupSettings}
       />
 
       <div className="min-h-screen">
@@ -554,7 +406,11 @@ export default function Index() {
         {/* Main Content */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           <div className="mb-8">
-            {!hideHeadline && <h1 className="text-2xl font-bold mb-2">{headline}</h1>}
+            {hideHeadline ? (
+              <h1 className="sr-only">{headline}</h1>
+            ) : (
+              <h1 className="text-2xl font-bold mb-2">{headline}</h1>
+            )}
             {!hideSubhead && (
               <p className="text-muted-foreground mb-6">{subhead}</p>
             )}

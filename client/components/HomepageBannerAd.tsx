@@ -4,6 +4,7 @@ import { bannerHasContent } from "@shared/bannerSlots";
 import { cn } from "@/lib/utils";
 import { CATALOG_THUMBNAIL_FRAME_CLASS } from "@/components/VideoCard";
 import { BannerHtmlContent } from "@/components/BannerHtmlContent";
+import { optimizedStorageImageUrl } from "@shared/optimizedStorageUrl";
 
 type Props = {
   banner: PublicHomepageBanner;
@@ -72,14 +73,14 @@ export function HomepageBannerAd({ banner, variant = "grid" }: Props) {
         muted
         loop
         playsInline
-        preload="metadata"
+        preload="none"
         aria-label={alt}
       />
     );
   } else {
     body = (
       <img
-        src={banner.image_url}
+        src={optimizedStorageImageUrl(banner.image_url, { width: 960 })}
         alt={alt}
         loading="lazy"
         decoding="async"

@@ -1,6 +1,7 @@
 import { Loader2, Play } from "lucide-react";
 import type { Video } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { optimizedStorageImageUrl } from "@shared/optimizedStorageUrl";
 
 /** Delay before the registration modal opens (matches progress animation on the card). */
 export const THUMBNAIL_WARMUP_BEFORE_MODAL_MS = 500;
@@ -28,6 +29,7 @@ export function VideoCard({
 }: VideoCardProps) {
   const warmupBlocksClick = isWarmupPlaying && !isDirectLinkWaiting;
   const { title, duration, thumbnail } = video;
+  const thumbnailSrc = optimizedStorageImageUrl(thumbnail, { width: 640 });
   return (
     <div
       role="button"
@@ -56,9 +58,10 @@ export function VideoCard({
       )}
     >
       <img
-        src={thumbnail}
+        src={thumbnailSrc}
         alt={title}
         loading="lazy"
+        decoding="async"
         className={cn(
           "w-full h-full object-cover transition-transform ease-out",
           isWarmupPlaying ? "scale-110 brightness-90" : "duration-300 group-hover:scale-110",

@@ -10,15 +10,21 @@ interface AccessModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedItem: Video | null;
+  popupSettings?: PopupSettings | null;
 }
 
-export function AccessModal({ isOpen, onClose, selectedItem }: AccessModalProps) {
+export function AccessModal({
+  isOpen,
+  onClose,
+  selectedItem,
+  popupSettings: popupSettingsProp = null,
+}: AccessModalProps) {
   const [registrationStarted, setRegistrationStarted] = useState(false);
   const locale = useLocale();
   const [popupSettings, setPopupSettings] = useState<PopupSettings | null>(
-    null,
+    popupSettingsProp,
   );
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!popupSettingsProp);
   const popupStrings = getPopupStringsForLocale(popupSettings, locale);
   const waitingTitle = popupStrings.waiting_title ?? "Waiting for Registration";
   const waitingDescription =
@@ -27,46 +33,38 @@ export function AccessModal({ isOpen, onClose, selectedItem }: AccessModalProps)
   const waitingButtonText =
     popupStrings.waiting_button_text ?? "Open Link Again";
 
-  // Fetch popup settings on mount
   useEffect(() => {
-    fetchPopupSettings();
-    subscribeToPopupChanges();
-  }, []);
-
-  const fetchPopupSettings = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("popup_settings")
-        .select("*")
-        .limit(1)
-        .single();
-
-      if (error) throw error;
-      setPopupSettings(data);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching popup settings:", error);
+    if (popupSettingsProp) {
+      setPopupSettings(popupSettingsProp);
       setLoading(false);
     }
-  };
+  }, [popupSettingsProp]);
 
-  // Subscribe to real-time changes
-  const subscribeToPopupChanges = () => {
-    const channel = supabase
-      .channel("popup-updates")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "popup_settings" },
-        (payload) => {
-          setPopupSettings(payload.new as PopupSettings);
-        },
-      )
-      .subscribe();
+  useEffect(() => {
+    if (popupSettingsProp || !isOpen) return;
+    let cancelled = false;
 
-    return () => {
-      channel.unsubscribe();
+    const fetchPopupSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("popup_settings")
+          .select("*")
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        if (!cancelled && data) setPopupSettings(data);
+      } catch (error) {
+        console.error("Error fetching popup settings:", error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     };
-  };
+
+    void fetchPopupSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, [popupSettingsProp, isOpen]);
 
   // Check registration state on mount - only during current session
   useEffect(() => {

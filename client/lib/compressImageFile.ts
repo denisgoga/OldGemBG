@@ -1,5 +1,5 @@
-const MAX_EDGE_PX = 960;
-const JPEG_QUALITY = 0.82;
+const MAX_EDGE_PX = 720;
+const JPEG_QUALITY = 0.75;
 
 /** Resize/compress raster images before Storage upload to cut cached egress. */
 export async function compressImageFile(file: File): Promise<File> {
@@ -7,7 +7,8 @@ export async function compressImageFile(file: File): Promise<File> {
     return file;
   }
 
-  if (file.size <= 180_000) {
+  const isPng = file.type.includes("png");
+  if (!isPng && file.size <= 80_000) {
     return file;
   }
 

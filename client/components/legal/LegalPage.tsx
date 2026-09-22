@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/Logo";
@@ -10,6 +10,8 @@ import {
   getPrivacyEmail,
 } from "@/lib/legal-config";
 import { legalPath } from "@/lib/legalPaths";
+import { applyDocumentSeo } from "@/lib/seo";
+import { isSupportedLocale, type Locale } from "@/i18n/locales";
 
 export interface LegalSection {
   title: string;
@@ -31,6 +33,15 @@ export function LegalPage({
 }: LegalPageProps) {
   const { locale = "en" } = useParams<{ locale: string }>();
   const site = getLegalSiteName();
+  const seoLocale: Locale = isSupportedLocale(locale) ? locale : "en";
+
+  useEffect(() => {
+    applyDocumentSeo({
+      title: `${title} | ${site}`,
+      description,
+      locale: seoLocale,
+    });
+  }, [title, description, site, seoLocale]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

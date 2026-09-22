@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   LegalPage,
@@ -16,10 +15,6 @@ export default function Dmca() {
   const { locale = "en" } = useParams<{ locale: string }>();
   const agentName = getDmcaAgentName();
   const postalAddress = getDmcaPostalAddress();
-
-  useEffect(() => {
-    document.title = `DMCA Policy | ${SITE}`;
-  }, []);
 
   return (
     <LegalPage

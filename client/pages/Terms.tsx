@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   LegalPage,
@@ -10,10 +9,6 @@ import { legalPath } from "@/lib/legalPaths";
 
 export default function Terms() {
   const { locale = "en" } = useParams<{ locale: string }>();
-
-  useEffect(() => {
-    document.title = `Terms of Service | ${SITE}`;
-  }, []);
 
   return (
     <LegalPage

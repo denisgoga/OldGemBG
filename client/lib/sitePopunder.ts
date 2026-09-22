@@ -66,6 +66,7 @@ export function applyPopunderSettingsFromRow(row: {
 }
 
 export async function loadSitePopunderSettings(): Promise<PopunderSettings | null> {
+  if (cached) return cached;
   if (loadPromise) return loadPromise;
 
   loadPromise = (async () => {

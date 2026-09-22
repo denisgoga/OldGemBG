@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   LegalPage,
@@ -10,10 +9,6 @@ import { legalPath } from "@/lib/legalPaths";
 
 export default function Privacy() {
   const { locale = "en" } = useParams<{ locale: string }>();
-
-  useEffect(() => {
-    document.title = `Privacy Policy | ${SITE}`;
-  }, []);
 
   return (
     <LegalPage

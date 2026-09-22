@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SUPPORTED_LOCALES, type Locale } from "@/i18n/locales";
 import { getPopupStringsForLocale, getSiteStringsForLocale } from "@/i18n/dbTranslation";
 import { BannersManager } from "@/components/admin/BannersManager";
+import { moveItemInList } from "@/lib/reorderItems";
 
 export default function Admin() {
   const [videos, setVideos] = useState<Video[]>([]);
@@ -35,6 +36,7 @@ export default function Admin() {
     null,
   );
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const [movingVideoId, setMovingVideoId] = useState<string | null>(null);
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
   const [editingPopup, setEditingPopup] = useState(false);
   const [popupForm, setPopupForm] = useState({
@@ -467,42 +469,41 @@ export default function Admin() {
   };
 
   const handleMoveVideo = async (id: string, direction: "up" | "down") => {
-    const currentIndex = videos.findIndex((v) => v.id === id);
-    if (
-      (direction === "up" && currentIndex <= 0) ||
-      (direction === "down" && currentIndex >= videos.length - 1)
-    ) {
-      return;
-    }
+    if (movingVideoId) return;
+    const newVideos = moveItemInList(videos, id, direction);
+    if (!newVideos) return;
 
-    const newVideos = [...videos];
-    const swapIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-    [newVideos[currentIndex], newVideos[swapIndex]] = [
-      newVideos[swapIndex],
-      newVideos[currentIndex],
-    ];
-
-    const a = newVideos[currentIndex];
-    const b = newVideos[swapIndex];
+    setMovingVideoId(id);
+    skipVideosRealtimeRef.current = true;
+    setVideos(newVideos);
     try {
-      const { error: err1 } = await supabase
-        .from("videos")
-        .update({ sort_order: currentIndex })
-        .eq("id", a.id);
-      const { error: err2 } = await supabase
-        .from("videos")
-        .update({ sort_order: swapIndex })
-        .eq("id", b.id);
-      if (err1 || err2) throw err1 || err2;
-      setVideos(newVideos);
+      const results = await Promise.all(
+        newVideos
+          .filter((video) => {
+            const previous = videos.find((item) => item.id === video.id);
+            return previous?.sort_order !== video.sort_order;
+          })
+          .map((video) =>
+            supabase
+              .from("videos")
+              .update({ sort_order: video.sort_order })
+              .eq("id", video.id),
+          ),
+      );
+      const failed = results.find((result) => result.error);
+      if (failed?.error) throw failed.error;
       toast({ title: "Success", description: `Video moved ${direction}!` });
     } catch (error) {
       console.error("Error moving video:", error);
+      await fetchVideos();
       toast({
         title: "Error",
         description: "Failed to save order",
         variant: "destructive",
       });
+    } finally {
+      skipVideosRealtimeRef.current = false;
+      setMovingVideoId(null);
     }
   };
 
@@ -995,7 +996,7 @@ export default function Admin() {
                         <div className="flex flex-col gap-2">
                           <button
                             onClick={() => handleMoveVideo(video.id, "up")}
-                            disabled={index === 0}
+                            disabled={index === 0 || !!movingVideoId}
                             className="p-2 hover:bg-primary/20 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-primary transition-colors"
                             title="Move up"
                           >
@@ -1003,7 +1004,9 @@ export default function Admin() {
                           </button>
                           <button
                             onClick={() => handleMoveVideo(video.id, "down")}
-                            disabled={index === videos.length - 1}
+                            disabled={
+                              index === videos.length - 1 || !!movingVideoId
+                            }
                             className="p-2 hover:bg-primary/20 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-primary transition-colors"
                             title="Move down"
                           >

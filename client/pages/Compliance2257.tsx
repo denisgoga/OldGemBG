@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   LegalPage,
@@ -16,10 +15,6 @@ export default function Compliance2257() {
   const { locale = "en" } = useParams<{ locale: string }>();
   const custodian = getDmcaAgentName();
   const postalAddress = getDmcaPostalAddress();
-
-  useEffect(() => {
-    document.title = `18 U.S.C. § 2257 Compliance | ${SITE}`;
-  }, []);
 
   return (
     <LegalPage

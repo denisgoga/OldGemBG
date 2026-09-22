@@ -20,14 +20,9 @@ import NotFound from "./pages/NotFound";
 import { LocaleProvider } from "@/i18n/LocaleContext";
 import { SUPPORTED_LOCALES, type Locale } from "@/i18n/locales";
 import { SitePopunder } from "@/components/SitePopunder";
-import { loadSitePopunderSettings } from "@/lib/sitePopunder";
-import { preloadManagedScripts } from "@/lib/siteManagedScriptsBoot";
 import { isLegalPath } from "@/lib/legalPaths";
 
 const queryClient = new QueryClient();
-
-loadSitePopunderSettings();
-preloadManagedScripts();
 
 function getLocaleFromPathname(pathname: string): Locale | null {
   const match = pathname.match(/^\/(en|de|it|es|fr)(\/|$)/);

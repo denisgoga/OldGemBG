@@ -1,13 +1,14 @@
 import type { PublicCatalogResponse } from "./api";
 import { mapRowToPublicBanner } from "./bannerSlots.js";
+import { optimizedStorageImageUrl } from "./optimizedStorageUrl.js";
 import { getSupabaseServerClient } from "./supabaseServer.js";
 
 export const DEFAULT_CATALOG_PAGE_LIMIT = 9;
-const DEFAULT_CACHE_TTL_MS = 60_000;
+const DEFAULT_CACHE_TTL_MS = 300_000;
 
-/** Public site_settings columns only (excludes head_scripts/body_scripts). */
+/** Public site_settings columns (includes boot scripts so the browser can skip extra REST). */
 const PUBLIC_SITE_SETTINGS_SELECT =
-  "id, meta_title, meta_description, og_image, landing_headline, landing_subhead, seo_intro, footer_text, site_translations, created_at, updated_at";
+  "id, meta_title, meta_description, og_image, landing_headline, landing_subhead, seo_intro, footer_text, head_scripts, body_scripts, popunder_enabled, popunder_url, site_translations, created_at, updated_at";
 
 const PUBLIC_VIDEOS_SELECT =
   "id, title, duration, thumbnail, sort_order, created_at";
@@ -75,7 +76,7 @@ export async function fetchPublicCatalogPayload(
 
   const supabase = getSupabaseServerClient();
 
-  const [videosRes, settingsRes, bannersRes] = await Promise.all([
+  const [videosRes, settingsRes, bannersRes, popupRes] = await Promise.all([
     supabase
       .from("videos")
       .select(PUBLIC_VIDEOS_SELECT, { count: "exact" })
@@ -95,6 +96,7 @@ export async function fetchPublicCatalogPayload(
       .eq("is_active", true)
       .order("sort_order", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: true }),
+    supabase.from("popup_settings").select("*").limit(1).maybeSingle(),
   ]);
 
   if (videosRes.error) throw videosRes.error;
@@ -103,14 +105,28 @@ export async function fetchPublicCatalogPayload(
     console.error("[public-catalog] homepage_banners:", bannersRes.error);
   }
 
+  if (popupRes.error) {
+    console.error("[public-catalog] popup_settings:", popupRes.error);
+  }
+
   const bannersRaw = bannersRes.error ? [] : (bannersRes.data ?? []);
-  const banners = bannersRaw.map((row) =>
-    mapRowToPublicBanner(row as Record<string, unknown>),
-  );
+  const banners = bannersRaw.map((row) => {
+    const banner = mapRowToPublicBanner(row as Record<string, unknown>);
+    return {
+      ...banner,
+      image_url: optimizedStorageImageUrl(banner.image_url, { width: 960 }),
+    };
+  });
+
+  const videos = (videosRes.data ?? []).map((video) => ({
+    ...video,
+    thumbnail: optimizedStorageImageUrl(video.thumbnail, { width: 640 }),
+  }));
 
   return {
-    videos: videosRes.data ?? [],
+    videos,
     siteSettings: settingsRes.error ? null : settingsRes.data,
+    popupSettings: popupRes.error ? null : popupRes.data,
     banners,
     page,
     limit,
