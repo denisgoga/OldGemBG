@@ -13,6 +13,19 @@ interface AccessModalProps {
   popupSettings?: PopupSettings | null;
 }
 
+function PopupDescription({ text }: { text: string }) {
+  const lead = "Hit ";
+  const phrase = "Free Registration";
+  if (!text.startsWith(lead + phrase)) return <>{text}</>;
+  return (
+    <>
+      {lead}
+      <strong className="font-bold text-white">{phrase}</strong>
+      {text.slice((lead + phrase).length)}
+    </>
+  );
+}
+
 export function AccessModal({
   isOpen,
   onClose,
@@ -128,7 +141,7 @@ export function AccessModal({
                 </p>
               )}
               <p className="mb-6 text-sm text-gray-300">
-                {popupStrings.description}
+                <PopupDescription text={popupStrings.description} />
               </p>
             </div>
 
