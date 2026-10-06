@@ -349,7 +349,7 @@ export default function Index() {
             <Skeleton className="h-4 w-full max-w-lg" />
             <Skeleton className="h-20 w-full max-w-xl rounded-lg" />
           </div>
-          <div className="grid grid-cols-1 min-[421px]:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {Array.from({ length: 9 }).map((_, i) => (
               <Skeleton
                 key={i}
@@ -440,7 +440,7 @@ export default function Index() {
             <>
               <div
                 className={cn(
-                  "grid grid-cols-1 min-[421px]:grid-cols-2 lg:grid-cols-4 gap-6 transition-opacity",
+                  "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 transition-opacity",
                   listLoading && "opacity-60 pointer-events-none",
                 )}
                 aria-busy={listLoading}
